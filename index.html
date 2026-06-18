@@ -211,7 +211,7 @@ async function applyXP(skillKey,xpAmt){
   if(sl<3&&sx>=XP_SK[sl]){sx-=XP_SK[sl];sl++;notify('⭐ '+SKL[skillKey]+' niv.'+sl,'var(--gold)')}
   let gx=(ME?.xp||0)+xpAmt,gl=ME?.level||0;
   if(gl<7&&gx>=XP_GL[gl]){gx-=XP_GL[gl];gl++;notify('🎉 Niv.'+gl+' ! '+playerTitle({...ME,level:gl}),'var(--purple)')}
-  await fbUpd('/players/'+myId,{'skills/'+skillKey+'/xp':sx,'skills/'+skillKey+'/level':sl,xp:gx,level:gl})
+  await fbUpd('/players/'+myId,{['skills/'+skillKey+'/xp']:sx,['skills/'+skillKey+'/level']:sl,xp:gx,level:gl})
 }
 
 async function setPity(action,ok){
