@@ -162,6 +162,8 @@ function initFB(){
     if(!v){DB.ref('/').set(DEF);return}
     DATA=v;ME=DATA.players&&DATA.players[myId]||null;
     if(!creating)render();
+  },err=>{
+    document.getElementById('app').innerHTML='<div style="padding:20px;color:#e04040;font-size:12px;word-break:break-all">Erreur DB : '+err.message+'</div>';
   });
 }
 const fbSet=(p,v)=>DB.ref(p).set(v);
@@ -659,7 +661,8 @@ function startTimer(){
 }
 
 // ══ INIT ══
+document.getElementById('app').innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100dvh;gap:16px"><div style="font-family:\'Press Start 2P\',monospace;font-size:10px;color:#f0c040">MJ</div><div style="font-size:12px;color:#606080">Connexion...</div></div>';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
-initFB();
+try{initFB()}catch(e){document.getElementById('app').innerHTML='<div style="padding:20px;color:#e04040;font-size:12px">Erreur : '+e.message+'</div>'}
 </script>
 </body></html>
