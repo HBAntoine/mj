@@ -47,7 +47,13 @@ html,body{height:100%;background:var(--bg);color:var(--white);font-family:'Nunit
 .xf{height:100%;background:var(--blue);transition:width .5s}
 /* Players */
 .pr{display:flex;align-items:center;gap:10px;padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:4px;margin-bottom:8px;cursor:pointer}
-.av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;border:2px solid;flex-shrink:0}
+.av{width:48px;height:62px;flex-shrink:0;overflow:visible;display:flex;align-items:center;justify-content:center}
+/* Avatar preview */
+.av-prev{display:flex;justify-content:center;padding:10px 0;animation:avpop .25s ease}
+@keyframes avpop{from{transform:scale(.88);opacity:.6}to{transform:scale(1);opacity:1}}
+/* Accessories multi-select */
+.accc.sel{border-color:var(--gold);background:rgba(240,192,64,.18);color:var(--gold)}
+.accc.maxed{opacity:.45;cursor:not-allowed}
 /* Zone grid */
 .zg{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .zc{background:var(--panel);border:2px solid var(--border);border-radius:6px;padding:14px 10px;text-align:center;cursor:pointer;transition:border-color .15s}
@@ -200,6 +206,66 @@ function notify(msg,col){
 }
 function addEv(type,text,pid2){fbPush('/events',{type,text,ts:Date.now(),pid:pid2||null})}
 function genCode(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from({length:4},()=>c[Math.floor(Math.random()*c.length)]).join('')}
+
+// ══ AVATAR SVG ══
+function mkAvatar(arch,c1,c2,accs,level,w,h){
+  w=w||64;h=h||80;
+  const stage=level>=7?2:level>=4?1:0;
+  const SK='#d4956a',DK='#181424',GD='#f0c040',WT='#e8e8f8';
+  const R=(x,y,ww,hh,f,rx)=>`<rect x="${x}" y="${y}" width="${ww}" height="${hh}" fill="${f}"${rx?` rx="${rx}"`:''}/>`;
+  const CI=(cx,cy,rr,f)=>`<circle cx="${cx}" cy="${cy}" r="${rr}" fill="${f}"/>`;
+  let glow='',hair='',body='',weapon='',acc='';
+  if(stage===1)glow=`<circle cx="8" cy="12" r="9.5" fill="none" stroke="${c2}" stroke-width="0.5" opacity="0.6"/>`;
+  if(stage===2)glow=`<circle cx="8" cy="12" r="9.5" fill="none" stroke="${GD}" stroke-width="0.9" opacity="0.8"/>`;
+  const face=R(5,2,6,5,SK,0.5)+CI(7,4.2,0.65,DK)+CI(9,4.2,0.65,DK)+CI(7.3,3.9,0.22,WT)+CI(9.3,3.9,0.22,WT);
+  const A={
+    guerrier:()=>{
+      if(stage===0){hair=R(4,0.2,8,2.2,c2);body=R(4,8,8,5,c1)+R(4,12.5,8,1,DK)+R(2,8,2.5,5,c1)+R(11.5,8,2.5,5,c1)+R(4.5,13.5,3,5.5,DK)+R(8.5,13.5,3,5.5,DK)+R(4,19,4,2,c2)+R(8,19,4,2,c2);weapon=R(13.2,4,1.2,9.5,c2)+R(11.5,9,4,0.8,DK)+R(13.4,13,0.8,1.8,c2);}
+      else if(stage===1){hair=R(3.8,0,8.4,2,c2)+R(4.5,2,7,0.8,DK);body=R(3,8,10,5.5,c1)+R(2,8,2.5,2.5,c2)+R(11.5,8,2.5,2.5,c2)+R(2.5,10.5,2,4,c1)+R(11.5,10.5,2,4,c1)+R(4.5,13.5,3,5.5,c1)+R(8.5,13.5,3,5.5,c1)+R(4,19,4,2,DK)+R(8,19,4,2,DK);weapon=R(13.2,3,1.4,10.5,c2)+R(11.5,8.5,4,1,c2)+R(13.4,13.5,0.8,1.5,c2)+R(0.5,8.5,2.5,4,c2);}
+      else{hair=R(3.8,0,8.4,2.5,GD)+R(5.2,0.3,5.6,2,c2);body=R(3,8,10,5.5,GD)+R(2,8,2.5,2.5,c2)+R(11.5,8,2.5,2.5,c2)+R(2.5,10.5,2,4,GD)+R(11.5,10.5,2,4,GD)+R(4.5,13.5,3,5.5,GD)+R(8.5,13.5,3,5.5,GD)+R(4,19,4,2,c2)+R(8,19,4,2,c2)+R(7.5,9.5,1,4,WT)+R(6.5,11,3,1,WT);weapon=R(13.2,3,1.5,10.5,GD)+R(11.5,8.5,4,1,GD)+R(13.4,13.5,0.8,1.5,GD)+R(0.5,7.5,2.5,5,GD);glow=`<circle cx="8" cy="12" r="9.5" fill="none" stroke="${GD}" stroke-width="1" opacity="0.8"/>`;}
+    },
+    mage:()=>{
+      if(stage===0){hair=R(4.5,0.5,7,2,c2);body=R(4,8,8,10,c1)+R(3,8,2,8,c1)+R(11,8,2,8,c1);weapon=R(13.5,0,1.5,17,c2)+CI(13.5,0,1.8,c2);}
+      else if(stage===1){hair=`<polygon points="8,-2 12,3 4,3" fill="${c2}"/>`+R(3.5,3,9,1.5,c2);body=R(4,8,8,10,c1)+R(3,8,2,8,c2)+R(11,8,2,8,c2);weapon=R(13.5,-1,1.5,17,c2)+CI(13.5,-1,2,c2);}
+      else{hair=`<polygon points="8,-3 12.5,3 3.5,3" fill="${c2}"/>`+R(2.5,3,11,1.5,c2)+R(7,0.5,2,2.5,GD);body=R(4,8,8,10,c1)+R(3,8,2,8,GD)+R(11,8,2,8,GD)+R(6.5,10,3,3,c2);weapon=R(13.5,-2,1.8,18,GD)+CI(13.5,-2,2.5,GD)+CI(13.5,-2,1.5,c2);glow=`<circle cx="8" cy="12" r="9.5" fill="none" stroke="${c2}" stroke-width="0.8" opacity="0.8"/>`;}
+    },
+    voleur:()=>{
+      if(stage===0){hair=R(4.5,0.5,7,2,c2);body=R(4.5,8,7,5,c1)+R(3,8.5,2,4,c1)+R(11,8.5,2,4,c1)+R(4.5,13.5,3,5.5,DK)+R(8.5,13.5,3,5.5,DK)+R(4,19,4,2,c2)+R(8,19,4,2,c2);weapon=R(13,7,1,6.5,c2)+R(12,12.5,3,0.7,c2);}
+      else if(stage===1){hair=R(3.5,0,9,3,DK)+R(3.5,3,2,4,DK)+R(10.5,3,2,4,DK);body=R(4.5,8,7,5,DK)+R(3,8.5,2,5,DK)+R(11,8.5,2,5,DK)+R(4.5,13.5,3,5.5,DK)+R(8.5,13.5,3,5.5,DK)+R(4,19,4,2,DK)+R(8,19,4,2,DK)+R(6,4,4,1.5,DK);weapon=R(13,5,1,7,c2)+R(12,11,3,0.7,c2)+R(0.5,5,1,7,c2)+R(-0.5,11,3,0.7,c2);}
+      else{hair=R(3,0,10,3.5,DK)+R(2.5,3.5,2,5,DK)+R(11.5,3.5,2,5,DK);body=R(4,8,8,6,DK)+R(2.5,8,2,6,DK)+R(11.5,8,2,6,DK)+R(4.5,14,3,6,DK)+R(8.5,14,3,6,DK)+R(4,20,4,1.5,DK)+R(8,20,4,1.5,DK)+R(6,4,4,1.5,DK);weapon=R(13,4,1.2,8.5,c2)+R(12,9.5,3,0.8,c2)+R(0.5,4,1.2,8.5,c2)+R(-0.7,9.5,3,0.8,c2);glow=`<circle cx="8" cy="12" r="9.5" fill="none" stroke="${c2}" stroke-width="0.5" opacity="0.8"/>`;}
+    },
+    barde:()=>{
+      if(stage===0){hair=R(4.5,0.5,7,2.5,c2);body=R(4,8,8,5,c1)+R(3,8,2,4.5,c1)+R(11,8,2,4.5,c1)+R(4.5,13.5,3,5.5,c2)+R(8.5,13.5,3,5.5,c2)+R(4,19,4,2,DK)+R(8,19,4,2,DK);weapon=CI(13.5,11,2.5,c2)+R(13,5,1,9.5,c2);}
+      else if(stage===1){hair=R(3,2,10,1.5,c1)+R(5.5,0,5,2.5,c1)+`<path d="M13.5 0.5 Q15.5 2 13 3 Q12 2 13.5 0.5Z" fill="${c2}"/>`;body=R(3.5,8,9,5.5,c1)+R(3,8,2,5.5,c2)+R(11,8,2,5.5,c2)+R(4.5,13.5,3,6,c2)+R(8.5,13.5,3,6,c2)+R(4,19.5,4,1.5,DK)+R(8,19.5,4,1.5,DK);weapon=CI(13.5,11,2.8,c2)+R(12.8,4,1.5,10.5,c1);}
+      else{hair=R(5,1,6,2,GD)+R(5.5,-1,1.5,2.5,GD)+R(7.5,-0.5,1.5,2,GD)+R(9.5,-1,1.5,2.5,GD)+CI(5.8,0,0.5,c2)+CI(8,0,0.5,c2)+CI(10.2,0,0.5,c2);body=R(3.5,8,9,5.5,c1)+R(3,8,2,5.5,GD)+R(11,8,2,5.5,GD)+R(4.5,13.5,3,6,c1)+R(8.5,13.5,3,6,c1)+R(4,19.5,4,1.5,GD)+R(8,19.5,4,1.5,GD)+R(7,10,2,2,GD);weapon=CI(13.8,11,3.2,GD)+CI(13.8,11,2.2,c2)+R(13.2,4,1.5,11,GD);glow=`<circle cx="8" cy="12" r="9.5" fill="none" stroke="${GD}" stroke-width="0.9" opacity="0.9"/>`;}
+    },
+    archer:()=>{
+      if(stage===0){hair=R(4.5,0.5,7,2,c2);body=R(4.5,8,7,5,c1)+R(3,8.5,2,4,c1)+R(11,8.5,2,4,c1)+R(4.5,13.5,3,5.5,DK)+R(8.5,13.5,3,5.5,DK)+R(4,19,4,2,c2)+R(8,19,4,2,c2);weapon=`<path d="M14 2 Q16.5 10 14 18" fill="none" stroke="${c2}" stroke-width="1.2" stroke-linecap="round"/><line x1="14" y1="2" x2="14" y2="18" stroke="${DK}" stroke-width="0.5"/>`;}
+      else if(stage===1){hair=R(4,0,8,3,c1)+R(4.5,3,7,1,DK);body=R(4,8,8,5,c1)+R(3,8,2,5,c2)+R(11,8,2,5,c2)+R(4.5,13.5,3,5.5,c1)+R(8.5,13.5,3,5.5,c1)+R(4,19,4,2,DK)+R(8,19,4,2,DK);weapon=`<path d="M14.5 1 Q17.5 10 14.5 19" fill="none" stroke="${c2}" stroke-width="1.5"/><line x1="14.5" y1="1" x2="14.5" y2="19" stroke="${DK}" stroke-width="0.6"/>`+R(11,9.5,5,0.8,GD)+R(14,7,0.7,5.5,GD);}
+      else{hair=R(3.5,0,9,3,DK)+R(4,3,8,1,c1);body=R(4,8,8,5,c1)+R(3,8,2,5,c2)+R(11,8,2,5,c2)+R(4.5,13.5,3,5.5,c2)+R(8.5,13.5,3,5.5,c2)+R(4,19,4,2,DK)+R(8,19,4,2,DK);weapon=`<path d="M14.5 0 Q18.5 10 14.5 20" fill="none" stroke="${c2}" stroke-width="2"/><line x1="14.5" y1="0" x2="14.5" y2="20" stroke="${DK}" stroke-width="0.7"/>`+R(11,9,5,0.9,GD)+R(14,6,0.8,6.5,GD);glow=`<circle cx="8" cy="12" r="9.5" fill="none" stroke="${c1}" stroke-width="0.7" opacity="0.7"/>`;}
+    },
+    clerc:()=>{
+      if(stage===0){hair=R(4.5,0.5,7,2,c2);body=R(4,8,8,10,WT)+R(3,8,2,9,WT)+R(11,8,2,9,WT)+R(7.5,10,1,5,c2)+R(6,12,4,1,c2);weapon=R(0.5,5,1.5,11,c2)+R(-0.5,9.5,4,1,c2);}
+      else if(stage===1){hair=R(4,0,8,3,c1)+R(5.5,3.5,5,0.5,c2);body=R(4,8,8,10,c1)+R(3,8,2,9,c2)+R(11,8,2,9,c2)+R(7.5,10,1,5,GD)+R(6,12,4,1,GD)+R(7,9,2,1,GD);weapon=R(-0.2,3,1.5,13,c2)+R(-1,9,4,1.2,c2)+CI(0.5,3,2,c2);}
+      else{hair=R(4.5,1,7,2,c2)+R(6,-2,4,3.5,c2)+R(7,0,2,2.5,GD);body=R(4,8,8,10,c1)+R(3,8,2,9,GD)+R(11,8,2,9,GD)+R(7.5,9,1,5.5,GD)+R(6,11.5,4,1,GD)+R(6.5,9,3,1,GD)+R(5.5,14,5,0.8,c2);weapon=R(-0.2,1,1.8,14,GD)+R(-1,7.5,4.5,1.5,GD)+CI(0.5,1,2.5,GD);glow=`<circle cx="8" cy="12" r="9.5" fill="none" stroke="${GD}" stroke-width="1.2" opacity="0.9"/>`;}
+    }
+  };
+  (A[arch]||A.guerrier)();
+  const AL=(Array.isArray(accs)?accs:[accs]).filter(a=>a&&a!=='Aucun');
+  const ACC={
+    'Chapeau':R(3.5,0.5,9,1.5,c2)+R(4.5,-0.5,7,1.5,c2),
+    'Cape':`<path d="M3.5 8.5 L0.5 14 L2 21 L3.5 14Z" fill="${c2}" opacity="0.85"/><path d="M12.5 8.5 L15.5 14 L14 21 L12.5 14Z" fill="${c2}" opacity="0.85"/>`,
+    'Masque':R(5.5,3.5,5,1.8,DK)+R(6,3.8,1.5,1.2,c2)+R(8.5,3.8,1.5,1.2,c2),
+    'Cicatrice':`<path d="M7 3 L8.5 5.5" stroke="#e04040" stroke-width="0.9" stroke-linecap="round"/>`,
+    'Tatouage':`<circle cx="9.5" cy="7.5" r="1.3" fill="none" stroke="${c2}" stroke-width="0.6"/>`,
+    'Plume':`<path d="M8 0.2 Q5.5 1.5 7.5 2.5 Q9.5 1.5 8 0.2Z" fill="${c2}"/>`,
+    'Couronne':R(4.5,1,7,1.5,GD)+R(5,-0.3,1.5,1.8,GD)+R(7.5,-0.3,1.5,1.8,GD)+R(10,-0.3,1.5,1.8,GD),
+    'Bandeau':R(4.5,2.5,7,1.3,c2),
+    'Bouclier':R(-2,8.5,3,4.5,c2)+`<path d="M-2 13 Q-0.5 14.5 1 13 L1 8.5 L-2 8.5Z" fill="${DK}" opacity="0.3"/>`,
+  };
+  acc=AL.map(a=>ACC[a]||'').join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -4 22 28" width="${w}" height="${h}" shape-rendering="crispEdges">${glow}${hair}${body}${weapon}${face}${acc}</svg>`;
+}
 
 // ══ DICE ENGINE ══
 function rollDice(action,skillLvl){
@@ -433,7 +499,9 @@ window.doJoin=async function(){
 window.renderHome=renderHome;
 
 function hdr(){
-  return '<div class="hdr"><div><div class="hdr-t">'+(ME?.pseudo||'MJ')+'</div><div style="font-size:10px;color:var(--gray)">'+playerTitle(ME||{})+' · Niv.'+(ME?.level||0)+'</div></div>'
+  const av=ME?mkAvatar(ME.archetype,ME.color1||'#4080f0',ME.color2||'#f0c040',ME.accessories||[],ME.level||0,32,40):'';
+  return '<div class="hdr"><div style="display:flex;align-items:center;gap:8px"><div style="overflow:visible;flex-shrink:0">'+av+'</div>'
+    +'<div><div class="hdr-t">'+(ME?.pseudo||'MJ')+'</div><div style="font-size:10px;color:var(--gray)">'+playerTitle(ME||{})+' · Niv.'+(ME?.level||0)+'</div></div></div>'
     +'<div style="text-align:right"><div style="font-size:16px;font-weight:800;color:var(--gold)">'+(ME?.gold||0)+' 🪙</div>'
     +(ME?.hasObject?'<div style="font-size:10px;color:var(--gold)">🗝️</div>':'')+'</div></div>'
 }
@@ -464,11 +532,12 @@ function rMap(){
   const cards=zones.map(zid=>{
     const z=ZONES[zid],here=Object.values(DATA.players||{}).filter(p=>p.currentZone===zid);
     const cd=cdLeft(zid),isObj=isAdmin()&&DATA.game.objectZone===zid;
+    const hereAv=here.length?'<div style="display:flex;justify-content:center;gap:2px;flex-wrap:wrap;margin-top:4px">'+here.map(p=>mkAvatar(p.archetype,p.color1||'#4080f0',p.color2||'#f0c040',p.accessories||[],p.level||0,24,30)).join('')+'</div>':'';
     return '<div class="zc'+(isObj?' obj':'')+'" onclick="onZone(\''+zid+'\')">'
       +'<div style="font-size:28px">'+z.icon+'</div>'
       +'<div style="font-size:11px;font-weight:700">'+z.name+'</div>'
-      +(here.length?'<div style="font-size:10px;color:var(--gray)">'+here.map(p=>p.pseudo).join(', ')+'</div>':'')
-      +(cd>0?'<div style="font-size:9px;color:var(--orange)">⏳ '+fmtMs(cd)+'</div>':'')
+      +hereAv
+      +(cd>0?'<div style="font-size:9px;color:var(--orange);margin-top:2px">⏳ '+fmtMs(cd)+'</div>':'')
       +'</div>'
   }).join('');
   return '<div class="card"><div class="ct">🗺️ Zones</div><div class="zg">'+cards+'</div></div>'
@@ -521,25 +590,25 @@ function rPlayers(){
   const ps=Object.entries(DATA.players||{});
   if(!ps.length)return'<div class="panel" style="text-align:center;color:var(--gray)">Aucun joueur</div>';
   return'<div class="card"><div class="ct">👥 Joueurs</div>'+ps.map(([id,p])=>{
-    const a=ARCHETYPES[p.archetype]||{};
     return'<div class="pr" onclick="onPlayer(\''+id+'\')">'
-      +'<div class="av" style="background:'+(p.color1||'#404060')+';border-color:'+(a.col||'var(--border)')+'">'+( a.icon||'?')+'</div>'
-      +'<div style="flex:1"><div style="font-weight:800;font-size:14px">'+p.pseudo+(id===myId?' (moi)':'')+'</div>'
-      +'<div style="font-size:11px;color:var(--gray)">'+playerTitle(p)+' · Niv.'+(p.level||0)+'</div></div>'
-      +'<div style="text-align:right">'+(p.hasObject?'<div style="font-size:16px">🗝️</div>':'')
-      +(isAdmin()?'<div style="font-size:12px;color:var(--gold)">'+(p.gold||0)+'🪙</div>':'')
-      +'<div style="font-size:10px;color:var(--gray)">'+(p.currentZone&&ZONES[p.currentZone]?ZONES[p.currentZone].name:'—')+'</div></div></div>'
+      +'<div class="av">'+mkAvatar(p.archetype,p.color1||'#4080f0',p.color2||'#f0c040',p.accessories||[],p.level||0,48,60)+'</div>'
+      +'<div style="flex:1"><div style="font-weight:800;font-size:14px">'+p.pseudo+(id===myId?' <span style="font-size:10px;color:var(--gray)">(moi)</span>':'')+'</div>'
+      +'<div style="font-size:11px;color:var(--gray)">'+playerTitle(p)+' · Niv.'+(p.level||0)+'</div>'
+      +(p.currentZone&&ZONES[p.currentZone]?'<div style="font-size:10px;color:var(--blue)">'+ZONES[p.currentZone].icon+' '+ZONES[p.currentZone].name+'</div>':'')
+      +'</div>'
+      +'<div style="text-align:right">'+(p.hasObject?'<div style="font-size:20px">🗝️</div>':'')
+      +(isAdmin()?'<div style="font-size:13px;font-weight:700;color:var(--gold)">'+(p.gold||0)+' 🪙</div>':'')+'</div></div>'
   }).join('')+'</div>'
 }
 
 window.onPlayer=function(tid){
   if(tid===myId)return;
   const p=DATA.players[tid];if(!p)return;
-  const a=ARCHETYPES[p.archetype]||{};
   const cd=cdLeft(tid);
-  showModal('<div style="text-align:center"><div style="font-size:32px">'+( a.icon||'?')+'</div>'
-    +'<div style="font-family:\'Press Start 2P\';font-size:10px;color:var(--gold);margin:8px 0">'+p.pseudo+'</div>'
-    +'<div style="font-size:12px;color:var(--gray);margin-bottom:16px">'+playerTitle(p)+' · '+(p.currentZone&&ZONES[p.currentZone]?ZONES[p.currentZone].name:'Zone ?')+'</div></div>'
+  showModal('<div style="text-align:center">'
+    +'<div class="av-prev">'+mkAvatar(p.archetype,p.color1||'#4080f0',p.color2||'#f0c040',p.accessories||[],p.level||0,88,110)+'</div>'
+    +'<div style="font-family:\'Press Start 2P\';font-size:10px;color:var(--gold);margin:6px 0">'+p.pseudo+'</div>'
+    +'<div style="font-size:12px;color:var(--gray);margin-bottom:14px">'+playerTitle(p)+' · Niv.'+(p.level||0)+(p.currentZone&&ZONES[p.currentZone]?' · '+ZONES[p.currentZone].name:'')+'</div></div>'
     +(cd>0?'<div style="text-align:center;color:var(--orange);margin-bottom:10px;font-size:12px">⏳ Cooldown : '+fmtMs(cd)+'</div>':'')
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
     +'<button class="btn btn-red btn-sm" onclick="doSteal(\''+tid+'\')"'+(cd>0?' disabled':'')+'>🤏 Voler</button>'
@@ -586,7 +655,7 @@ window.showHideMenu=function(){
 };
 
 // ══ LOBBY ══
-let lstep=1,ld={pseudo:'',archetype:'',color1:'#4080f0',color2:'#f0c040',accessory:'Aucun'};
+let lstep=1,ld={pseudo:'',archetype:'',color1:'#4080f0',color2:'#f0c040',accessories:[]};
 
 function renderLobby(){
   creating=true;
@@ -603,27 +672,40 @@ function lobbyHtml(){
       +dots()+'<input id="psi" class="inp" placeholder="Pseudo..." maxlength="20" value="'+ld.pseudo+'">'
       +'<button class="btn btn-gold" onclick="lNext()">Continuer →</button>'
   } else if(lstep===2){
-    const cards=Object.entries(ARCHETYPES).map(([k,a])=>'<div class="ac'+(ld.archetype===k?' sel':'')+'" onclick="lArch(\''+k+'\')">'
+    const cards=Object.entries(ARCHETYPES).map(([k,a])=>'<div class="ac'+(ld.archetype===k?' sel':'')+'" onclick="lArch(\''+k+'\')" style="'+(ld.archetype===k?'border-color:'+a.col+';':'')+'">'
       +'<div style="font-size:26px">'+a.icon+'</div><div style="font-size:11px;font-weight:800">'+a.name+'</div>'
       +'<div style="font-size:9px;color:var(--gray);margin-top:4px">'+a.evols.join(' → ')+'</div>'
       +'<div style="font-size:10px;color:var(--gray);margin-top:2px">'+a.desc+'</div></div>').join('');
-    c='<div style="font-size:12px;color:var(--gray);text-align:center;margin-bottom:12px">Choisis ton archétype</div>'
-      +dots()+'<div class="ag">'+cards+'</div>'
+    c='<div style="font-size:12px;color:var(--gray);text-align:center;margin-bottom:8px">Choisis ton archétype</div>'
+      +dots()
+      +(ld.archetype?'<div class="av-prev">'+mkAvatar(ld.archetype,ld.color1,ld.color2,ld.accessories,0,80,100)+'</div>':'<div style="height:32px"></div>')
+      +'<div class="ag">'+cards+'</div>'
       +'<button class="btn btn-gold" style="margin-top:12px" onclick="lNext()"'+(ld.archetype?'':' disabled')+'>Continuer →</button>'
       +'<button class="btn btn-gray" style="margin-top:8px" onclick="lBack()">← Retour</button>'
   } else if(lstep===3){
-    const sw1=COLORS.map(c2=>'<div class="cs'+(ld.color1===c2?' sel':'')+'" style="background:'+c2+'" onclick="lCol(\'color1\',\''+c2+'\')"></div>').join('');
-    const sw2=COLORS.map(c2=>'<div class="cs'+(ld.color2===c2?' sel':'')+'" style="background:'+c2+'" onclick="lCol(\'color2\',\''+c2+'\')"></div>').join('');
-    const acc=ACCS.map(a=>'<div class="accc'+(ld.accessory===a?' sel':'')+'" onclick="lAcc(\''+a+'\')">'+a+'</div>').join('');
-    c='<div style="font-size:12px;color:var(--gray);text-align:center;margin-bottom:12px">Personnalise ton personnage</div>'
-      +dots()+'<div class="card"><b style="font-size:12px">Couleur principale</b><div class="cg">'+sw1+'</div>'
+    const sw1=COLORS.map(cc=>'<div class="cs'+(ld.color1===cc?' sel':'')+'" style="background:'+cc+'" onclick="lCol(\'color1\',\''+cc+'\')"></div>').join('');
+    const sw2=COLORS.map(cc=>'<div class="cs'+(ld.color2===cc?' sel':'')+'" style="background:'+cc+'" onclick="lCol(\'color2\',\''+cc+'\')"></div>').join('');
+    const maxed=ld.accessories.length>=3;
+    const accHdr='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:12px">Accessoires</b><span style="font-size:11px;color:var(--'+(maxed?'gold':'gray)')+'">'+ld.accessories.length+'/3</span></div>';
+    const accBtns=ACCS.filter(a=>a!=='Aucun').map(a=>{
+      const sel=ld.accessories.includes(a);
+      return '<div class="accc'+(sel?' sel':(!sel&&maxed?' maxed':''))+'" onclick="lToggleAcc(\''+a+'\')">'+(sel?'✓ ':'')+a+'</div>';
+    }).join('');
+    const clearBtn=ld.accessories.length>0?'<button class="btn btn-gray btn-sm" onclick="lClearAcc()" style="grid-column:span 3;margin-top:4px;font-size:11px;color:var(--red)">✕ Effacer les accessoires</button>':'';
+    c='<div style="font-size:12px;color:var(--gray);text-align:center;margin-bottom:8px">Personnalise ton personnage</div>'
+      +dots()
+      +'<div class="av-prev">'+mkAvatar(ld.archetype,ld.color1,ld.color2,ld.accessories,0,96,120)+'</div>'
+      +'<div class="card"><b style="font-size:12px">Couleur principale</b><div class="cg">'+sw1+'</div>'
       +'<b style="font-size:12px">Couleur secondaire</b><div class="cg">'+sw2+'</div>'
-      +'<b style="font-size:12px">Accessoire</b><div class="accg" style="margin-top:8px">'+acc+'</div></div>'
+      +accHdr+'<div class="accg">'+accBtns+clearBtn+'</div></div>'
       +'<button class="btn btn-gold" onclick="lNext()">Continuer →</button>'
       +'<button class="btn btn-gray" style="margin-top:8px" onclick="lBack()">← Retour</button>'
   } else {
     c='<div style="font-size:12px;color:var(--gray);text-align:center;margin-bottom:12px">PIN secret inventaire (4-6 chiffres)</div>'
-      +dots()+'<input id="pin-s" type="password" inputmode="numeric" class="inp pin" placeholder="••••" maxlength="6">'
+      +dots()
+      +'<div class="av-prev">'+mkAvatar(ld.archetype,ld.color1,ld.color2,ld.accessories,0,72,90)+'</div>'
+      +'<div style="text-align:center;margin-bottom:12px"><b style="font-size:13px">'+ld.pseudo+'</b><br><span style="font-size:11px;color:var(--gray)">'+( ARCHETYPES[ld.archetype]?.evols[0]||'')+'</span></div>'
+      +'<input id="pin-s" type="password" inputmode="numeric" class="inp pin" placeholder="••••" maxlength="6">'
       +'<button class="btn btn-gold" onclick="lFinish()">Rejoindre !</button>'
       +'<button class="btn btn-gray" style="margin-top:8px" onclick="lBack()">← Retour</button>'
   }
@@ -637,14 +719,21 @@ window.lNext=function(){
 };
 window.lBack=function(){lstep=Math.max(1,lstep-1);document.getElementById('app').innerHTML=lobbyHtml()};
 window.lArch=function(k){ld.archetype=k;document.getElementById('app').innerHTML=lobbyHtml()};
-window.lCol=function(key,c){ld[key]=c;document.getElementById('app').innerHTML=lobbyHtml()};
-window.lAcc=function(a){ld.accessory=a;document.getElementById('app').innerHTML=lobbyHtml()};
+window.lCol=function(key,v){ld[key]=v;document.getElementById('app').innerHTML=lobbyHtml()};
+window.lToggleAcc=function(a){
+  const i=ld.accessories.indexOf(a);
+  if(i>=0){ld.accessories.splice(i,1)}
+  else if(ld.accessories.length<3){ld.accessories.push(a)}
+  else{notify('Maximum 3 accessoires','var(--orange)');return}
+  document.getElementById('app').innerHTML=lobbyHtml()
+};
+window.lClearAcc=function(){ld.accessories=[];document.getElementById('app').innerHTML=lobbyHtml()};
 window.lFinish=async function(){
   const pin=document.getElementById('pin-s')?.value;
   if(!pin||pin.length<4){notify('PIN trop court (4-6 chiffres)','var(--red)');return}
   savePin(pin);
   const amAdmin=homeFlow==='create';
-  const player={pseudo:ld.pseudo,archetype:ld.archetype,color1:ld.color1,color2:ld.color2,accessory:ld.accessory,
+  const player={pseudo:ld.pseudo,archetype:ld.archetype,color1:ld.color1,color2:ld.color2,accessories:ld.accessories,
     level:0,xp:0,gold:0,hasObject:false,
     skills:{search:{level:0,xp:0},steal:{level:0,xp:0},spy:{level:0,xp:0},talk:{level:0,xp:0}},
     pityCounts:{search:0,steal:0,spy:0,talk:0,negotiate:0},
@@ -667,14 +756,16 @@ function renderWait(){
     +'<div style="font-family:\'Press Start 2P\';font-size:28px;color:var(--gold);letter-spacing:6px">'+code+'</div>'
     +'<div style="font-size:11px;color:var(--gray);margin-top:6px">Partage ce code avec tes amis</div>'
     +'</div>'
-    +'<div style="background:var(--panel);border:2px solid var(--border);border-radius:6px;padding:10px;margin-bottom:12px;display:flex;align-items:center;gap:10px">'
-    +'<div style="font-size:24px">'+arch.icon+'</div>'
-    +'<div style="text-align:left;flex:1"><div style="font-weight:800;font-size:14px">'+ME.pseudo+'</div><div style="font-size:11px;color:var(--gray)">'+playerTitle(ME)+'</div></div>'
-    +(isAdmin()?'<span style="font-size:10px;padding:3px 8px;background:var(--purple);border-radius:3px;color:#fff">👑</span>':'')+'</div>'
+    +'<div style="background:var(--panel);border:2px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;display:flex;align-items:center;gap:12px">'
+    +'<div style="overflow:visible;flex-shrink:0">'+mkAvatar(ME.archetype,ME.color1||'#4080f0',ME.color2||'#f0c040',ME.accessories||[],ME.level||0,56,70)+'</div>'
+    +'<div style="text-align:left;flex:1"><div style="font-weight:800;font-size:15px">'+ME.pseudo+'</div><div style="font-size:11px;color:var(--gray)">'+playerTitle(ME)+'</div>'
+    +(ME.accessories&&ME.accessories.length?'<div style="font-size:10px;color:var(--blue);margin-top:2px">'+ME.accessories.join(' · ')+'</div>':'')+'</div>'
+    +(isAdmin()?'<span style="font-size:10px;padding:3px 8px;background:var(--purple);border-radius:3px;color:#fff">👑 Admin</span>':'')+'</div>'
     +'<div style="font-size:12px;color:var(--gray);margin-bottom:8px">'+cnt+' joueur'+(cnt>1?'s':'')+'</div>'
-    +ps.map(([pid2,p])=>'<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:4px;margin-bottom:4px">'
-      +'<div class="av" style="width:28px;height:28px;font-size:14px;background:'+(p.color1||'#404060')+';border-color:'+(ARCHETYPES[p.archetype]?.col||'var(--border)')+'">'+( ARCHETYPES[p.archetype]?.icon||'?')+'</div>'
-      +'<span style="font-size:12px;font-weight:700;flex:1">'+p.pseudo+(pid2===myId?' (moi)':'')+'</span>'
+    +ps.map(([pid2,p])=>'<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:4px;margin-bottom:4px">'
+      +'<div style="overflow:visible;flex-shrink:0">'+mkAvatar(p.archetype,p.color1||'#4080f0',p.color2||'#f0c040',p.accessories||[],p.level||0,40,50)+'</div>'
+      +'<div style="flex:1"><div style="font-size:12px;font-weight:700">'+p.pseudo+(pid2===myId?' <span style="font-size:10px;color:var(--gray)">(moi)</span>':'')+'</div>'
+      +'<div style="font-size:10px;color:var(--gray)">'+playerTitle(p)+'</div></div>'
       +(p.isAdmin?'<span style="font-size:10px;padding:2px 6px;background:var(--purple);border-radius:3px;color:#fff">👑</span>':'')
       +(isAdmin()&&pid2!==myId?'<button style="background:var(--red);border:none;border-radius:3px;color:#fff;font-size:11px;padding:3px 8px;cursor:pointer" onclick="kickPlayer(\''+pid2+'\')">✕</button>':'')
       +'</div>').join('')
@@ -712,7 +803,7 @@ function renderEnd(){
     +'<div class="card"><div class="ct">🏆 Classement</div>'
     +ranks.map((p,i)=>'<div class="pr">'
       +'<div style="font-size:20px;min-width:28px">'+(['🥇','🥈','🥉'][i]||'#'+(i+1))+'</div>'
-      +'<div class="av" style="background:'+(p.color1||'#404060')+';border-color:'+(ARCHETYPES[p.archetype]?.col||'var(--border)')+'">'+( ARCHETYPES[p.archetype]?.icon||'?')+'</div>'
+      +'<div class="av">'+mkAvatar(p.archetype,p.color1||'#4080f0',p.color2||'#f0c040',p.accessories||[],p.level||0,48,60)+'</div>'
       +'<div style="flex:1"><div style="font-weight:800;font-size:13px">'+p.pseudo+'</div><div style="font-size:11px;color:var(--gray)">Niv.'+(p.level||0)+' · '+playerTitle(p)+'</div></div>'
       +'<div style="font-weight:800;color:var(--gold)">'+(p.gold||0)+' 🪙</div></div>').join('')+'</div>'
     +(isAdmin()?'<button class="btn btn-red" onclick="resetGame()">🔄 Nouvelle partie</button>':'')+'</div>'
