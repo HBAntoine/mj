@@ -1,0 +1,26 @@
+<!DOCTYPE html><html><head><title>Générer icônes</title></head>
+<body style="background:#0a0a1a;color:#e0e0f0;font-family:sans-serif;padding:20px;text-align:center">
+<h2 style="color:#f0c040">Générateur d'icônes MJ</h2>
+<canvas id="c"></canvas>
+<script>
+function drawIcon(size){
+  const c=document.getElementById('c');c.width=size;c.height=size;
+  const ctx=c.getContext('2d'),s=size/192;
+  ctx.fillStyle='#0a0a1a';ctx.fillRect(0,0,size,size);
+  ctx.strokeStyle='#3a3a6a';ctx.lineWidth=4*s;ctx.strokeRect(8*s,8*s,176*s,176*s);
+  ctx.fillStyle='#f0c040';
+  [[48,56,16,16],[64,48,16,8],[80,40,16,16],[96,48,16,8],[112,56,16,16],[48,72,96,32],[40,104,112,8]].forEach(([x,y,w,h])=>ctx.fillRect(x*s,y*s,w*s,h*s));
+  ctx.fillStyle='#e0e0f0';ctx.fillRect(88*s,120*s,8*s,40*s);
+  ctx.fillStyle='#a040f0';ctx.fillRect(72*s,132*s,40*s,8*s);
+  ctx.fillStyle='#f0c040';ctx.fillRect(84*s,156*s,16*s,8*s);
+}
+function download(size){
+  drawIcon(size);
+  const a=document.createElement('a');a.download='icon-'+size+'.png';
+  a.href=document.getElementById('c').toDataURL('image/png');a.click();
+}
+</script>
+<p style="margin:20px 0">Cliquez pour télécharger chaque icône, puis placez-les dans <code>icons/</code></p>
+<button onclick="download(192)" style="padding:12px 24px;margin:8px;background:#f0c040;border:none;border-radius:4px;cursor:pointer;font-weight:bold">Télécharger icon-192.png</button>
+<button onclick="download(512)" style="padding:12px 24px;margin:8px;background:#f0c040;border:none;border-radius:4px;cursor:pointer;font-weight:bold">Télécharger icon-512.png</button>
+</body></html>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" fill="#0a0a1a"/>
+  <rect x="8" y="8" width="176" height="176" fill="none" stroke="#3a3a6a" stroke-width="4"/>
+  <!-- Pixel crown -->
+  <rect x="48" y="56" width="16" height="16" fill="#f0c040"/>
+  <rect x="64" y="48" width="16" height="8"  fill="#f0c040"/>
+  <rect x="80" y="40" width="16" height="16" fill="#f0c040"/>
+  <rect x="96" y="48" width="16" height="8"  fill="#f0c040"/>
+  <rect x="112" y="56" width="16" height="16" fill="#f0c040"/>
+  <rect x="48" y="72" width="96" height="32" fill="#f0c040"/>
+  <rect x="40" y="104" width="112" height="8" fill="#f0c040"/>
+  <!-- Pixel sword -->
+  <rect x="88" y="120" width="8" height="40" fill="#e0e0f0"/>
+  <rect x="72" y="132" width="40" height="8" fill="#a040f0"/>
+  <rect x="84" y="156" width="16" height="8" fill="#f0c040"/>
+  <!-- Text MJ (pixel blocks) -->
+  <rect x="52" y="84" width="4" height="12" fill="#0a0a1a"/>
+  <rect x="56" y="84" width="4" height="4"  fill="#0a0a1a"/>
+  <rect x="60" y="88" width="4" height="8"  fill="#0a0a1a"/>
+  <rect x="64" y="84" width="4" height="12" fill="#0a0a1a"/>
+</svg>
