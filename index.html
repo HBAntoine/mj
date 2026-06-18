@@ -101,8 +101,10 @@ html,body{height:100%;background:var(--bg);color:var(--white);font-family:'Nunit
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 </style>
-<body><div id="app"></div>
+<body>
+<div id="app"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100dvh;gap:16px"><div style="font-family:'Press Start 2P',monospace;font-size:12px;color:#f0c040">MJ</div><div style="font-size:12px;color:#606080">Chargement...</div></div></div>
 <script>
+window.onerror=function(m,s,l,c,e){document.getElementById('app').innerHTML='<div style="padding:20px;color:#e04040;font-size:12px;word-break:break-all">Erreur L'+l+': '+m+'</div>';return true};
 // ══ FIREBASE CONFIG — remplacez ces valeurs ══
 const FB_CFG = {
   apiKey:"AIzaSyARVKSCufGwhXEj-0-BFKDagJu9e4ubb6U",
