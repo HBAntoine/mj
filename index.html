@@ -163,6 +163,11 @@ function initFB(){
     const v=snap.val();
     if(!v){DB.ref('/').set(DEF);return}
     DATA=v;ME=DATA.players&&DATA.players[myId]||null;
+    // Auto-claim admin if no admin exists and current player is in the game
+    if(ME&&!ME.isAdmin){
+      const hasAdmin=Object.values(DATA.players||{}).some(p=>p.isAdmin);
+      if(!hasAdmin)DB.ref('/players/'+myId+'/isAdmin').set(true);
+    }
     if(!creating)render();
   },err=>{
     document.getElementById('app').innerHTML='<div style="padding:20px;color:#e04040;font-size:12px;word-break:break-all">Erreur DB : '+err.message+'</div>';
