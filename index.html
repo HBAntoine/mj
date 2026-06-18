@@ -141,12 +141,13 @@ const XP_GL=[10,25,45,70,100,135,175];
 const RLBL={critical_fail:'💀 Échec Critique',fail:'✗ Échec',success:'✓ Succès',strong_success:'★ Succès Fort',critical:'⚡ Succès Critique'};
 const DEF={
   game:{status:'lobby',objectZone:null,objectHolder:null,objectFoundAt:null,timerDuration:30,timerEnd:null,startedAt:null},
-  config:{timerMinutes:30,activeZones:Object.keys(ZONES),cooldownRatio:0.12},
+  config:{timerMinutes:30,activeZones:Object.keys(ZONES),cooldownRatio:0.12,gameCode:null,gameId:null,scenario:'chercheur_menteur'},
   players:{},events:[],zones:{}
 };
 
 // ══ STATE ══
 let DB,DATA=null,ME=null,myId,myPin,curTab='map',timerIv=null,notifT=null,creating=false;
+let homeFlow=null,joinCode='',pendingCfg={timerMinutes:30};
 
 function pid(){let id=localStorage.getItem('mj_pid');if(!id){id='p'+Math.random().toString(36).slice(2,10);localStorage.setItem('mj_pid',id)}return id}
 function getPin(){return localStorage.getItem('mj_pin')}
@@ -198,6 +199,7 @@ function notify(msg,col){
   notifT=setTimeout(()=>d.remove(),3000)
 }
 function addEv(type,text,pid2){fbPush('/events',{type,text,ts:Date.now(),pid:pid2||null})}
+function genCode(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from({length:4},()=>c[Math.floor(Math.random()*c.length)]).join('')}
 
 // ══ DICE ENGINE ══
 function rollDice(action,skillLvl){
@@ -354,12 +356,81 @@ async function checkVictory(){
 function render(){
   if(!DATA){document.getElementById('app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100dvh;font-family:\'Press Start 2P\';font-size:10px;color:var(--gold)">Connexion...</div>';return}
   if(DATA.game.status==='ended'){renderEnd();return}
-  if(!ME){renderLobby();return}
+  if(!DATA.config?.gameCode){if(!creating)renderHome();return}
+  if(!ME){if(!creating)renderHome();return}
   if(DATA.game.status==='lobby'){renderWait();return}
   const a=document.getElementById('app');
   a.innerHTML=hdr()+'\n<div class="screen" id="sc"></div>\n'+nav();
   renderTab();startTimer()
 }
+
+function renderHome(){
+  creating=false;homeFlow=null;
+  const code=DATA?.config?.gameCode;
+  const gameActive=code&&DATA?.game?.status==='lobby';
+  document.getElementById('app').innerHTML='<div class="ls"><div style="width:100%;max-width:360px;text-align:center">'
+    +'<div class="lt">MJ<br><span style="font-size:11px">Maître du Jeu</span></div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-bottom:32px">Jeu grandeur nature JRPG</div>'
+    +(gameActive?'<div style="background:var(--panel);border:2px solid var(--gold);border-radius:6px;padding:12px;margin-bottom:16px;font-size:12px">Partie en cours — Code : <b style="color:var(--gold);font-family:\'Press Start 2P\';font-size:14px">'+code+'</b></div>':'')
+    +'<button class="btn btn-gold" style="margin-bottom:12px" onclick="showCreate()">🎮 Créer une partie</button>'
+    +'<button class="btn btn-blue" onclick="showJoin()">🔑 Rejoindre une partie</button>'
+    +'</div></div>'
+}
+
+function showCreate(){
+  homeFlow='create';
+  document.getElementById('app').innerHTML='<div class="ls"><div style="width:100%;max-width:360px">'
+    +'<div class="lt" style="font-size:13px;margin-bottom:24px">Nouvelle partie</div>'
+    +'<div class="card" style="margin-bottom:12px">'
+    +'<div class="ct">🗺️ Scénario</div>'
+    +'<div style="background:var(--bg2);border:2px solid var(--gold);border-radius:6px;padding:14px;text-align:center">'
+    +'<div style="font-size:28px;margin-bottom:6px">🗝️</div>'
+    +'<div style="font-weight:800;font-size:14px">Chercheur Menteur</div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-top:4px">Trouve et conserve l\'objet caché</div>'
+    +'</div></div>'
+    +'<div class="card" style="margin-bottom:12px">'
+    +'<div class="ct">⚙️ Configuration</div>'
+    +'<label style="font-size:12px;color:var(--gray)">Durée de partie (minutes)</label>'
+    +'<input id="cfg-t" type="number" class="inp" value="30" min="1" max="120" style="margin:8px 0">'
+    +'</div>'
+    +'<button class="btn btn-gold" onclick="doCreate()">Créer →</button>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="renderHome()">← Retour</button>'
+    +'</div></div>'
+}
+window.showCreate=showCreate;
+
+window.doCreate=async function(){
+  const t=parseInt(document.getElementById('cfg-t')?.value||30);
+  pendingCfg.timerMinutes=t;
+  const code=genCode();
+  await DB.ref('/').set({...DEF,config:{...DEF.config,timerMinutes:t,gameCode:code,gameId:Date.now(),scenario:'chercheur_menteur'}});
+  addEv('info','Partie créée — Code : '+code,null);
+  homeFlow='create';lstep=1;creating=true;
+  document.getElementById('app').innerHTML=lobbyHtml()
+};
+
+function showJoin(){
+  homeFlow='join';
+  document.getElementById('app').innerHTML='<div class="ls"><div style="width:100%;max-width:360px;text-align:center">'
+    +'<div class="lt" style="font-size:13px;margin-bottom:24px">Rejoindre</div>'
+    +'<div style="font-size:12px;color:var(--gray);margin-bottom:12px">Entre le code de partie (4 caractères)</div>'
+    +'<input id="jcode" class="inp pin" placeholder="ABCD" maxlength="4" style="text-transform:uppercase;font-family:\'Press Start 2P\';font-size:20px;text-align:center;letter-spacing:6px">'
+    +'<button class="btn btn-blue" onclick="doJoin()">Rejoindre →</button>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="renderHome()">← Retour</button>'
+    +'</div></div>'
+}
+window.showJoin=showJoin;
+
+window.doJoin=async function(){
+  const v=document.getElementById('jcode')?.value?.toUpperCase().trim();
+  if(!v||v.length!==4){notify('Code invalide (4 caractères)','var(--red)');return}
+  const snap=await DB.ref('/config/gameCode').get();
+  const serverCode=snap.val();
+  if(!serverCode||serverCode!==v){notify('Code introuvable — vérifie avec l\'hôte','var(--red)');return}
+  joinCode=v;homeFlow='join';lstep=1;creating=true;
+  document.getElementById('app').innerHTML=lobbyHtml()
+};
+window.renderHome=renderHome;
 
 function hdr(){
   return '<div class="hdr"><div><div class="hdr-t">'+(ME?.pseudo||'MJ')+'</div><div style="font-size:10px;color:var(--gray)">'+playerTitle(ME||{})+' · Niv.'+(ME?.level||0)+'</div></div>'
@@ -572,37 +643,64 @@ window.lFinish=async function(){
   const pin=document.getElementById('pin-s')?.value;
   if(!pin||pin.length<4){notify('PIN trop court (4-6 chiffres)','var(--red)');return}
   savePin(pin);
-  const isFirst=!Object.keys(DATA.players||{}).length;
+  const amAdmin=homeFlow==='create';
   const player={pseudo:ld.pseudo,archetype:ld.archetype,color1:ld.color1,color2:ld.color2,accessory:ld.accessory,
     level:0,xp:0,gold:0,hasObject:false,
     skills:{search:{level:0,xp:0},steal:{level:0,xp:0},spy:{level:0,xp:0},talk:{level:0,xp:0}},
     pityCounts:{search:0,steal:0,spy:0,talk:0,negotiate:0},
-    cooldowns:{},currentZone:null,isAdmin:isFirst,joinedAt:Date.now()};
+    cooldowns:{},currentZone:null,isAdmin:amAdmin,joinedAt:Date.now()};
   await fbSet('/players/'+myId,player);
-  addEv('info',ld.pseudo+' rejoint la partie !',myId);
+  addEv('info',ld.pseudo+(amAdmin?' crée':'  rejoint')+' la partie !',myId);
   creating=false
 };
 
 // ══ LOBBY WAIT ══
 function renderWait(){
-  const ps=Object.values(DATA.players||{}),cnt=ps.length;
+  const ps=Object.entries(DATA.players||{}),cnt=ps.length;
+  const code=DATA.config?.gameCode||'????';
   const arch=ARCHETYPES[ME?.archetype]||{};
-  document.getElementById('app').innerHTML='<div class="ls"><div style="width:100%;max-width:360px;text-align:center">'
-    +'<div class="lt" style="font-size:13px">Salle d\'attente</div>'
-    +'<div style="font-family:\'Press Start 2P\';font-size:28px;color:var(--gold);margin:12px 0">'+cnt+'/20</div>'
-    +'<div style="font-size:12px;color:var(--gray);margin-bottom:16px">'+(cnt<5?'(min. 5 joueurs)':'✅ Prêt')+'</div>'
-    +'<div style="background:var(--panel);border:2px solid var(--border);border-radius:6px;padding:12px;margin-bottom:12px">'
-    +'<div style="font-size:28px">'+arch.icon+'</div><div style="font-weight:800;font-size:14px;margin-top:6px">'+ME.pseudo+'</div>'
-    +'<div style="font-size:11px;color:var(--gray)">'+playerTitle(ME)+'</div>'
-    +(isAdmin()?'<div style="margin-top:6px"><span style="font-size:10px;padding:3px 8px;background:var(--purple);border-radius:3px;color:#fff">👑 Admin</span></div>':'')+'</div>'
-    +ps.map(p=>'<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px">'
-      +'<div class="av" style="width:26px;height:26px;font-size:13px;background:'+(p.color1||'#404060')+';border-color:'+(ARCHETYPES[p.archetype]?.col||'var(--border)')+'">'+( ARCHETYPES[p.archetype]?.icon||'?')+'</div>'
-      +'<span style="font-size:12px;font-weight:700">'+p.pseudo+'</span>'
-      +(p.isAdmin?'<span style="font-size:10px;padding:2px 6px;background:var(--purple);border-radius:3px;color:#fff">👑</span>':'')+'</div>').join('')
-    +(isAdmin()?'<div style="margin-top:16px"><label style="font-size:12px;color:var(--gray)">Durée (min)</label><input id="tl" type="number" class="inp" value="30" min="5" max="120" style="margin:8px 0"><button class="btn btn-gold" onclick="adminStart()"'+(cnt<5?' disabled':'')+'>⚔️ Lancer la partie</button></div>'
+  const timerVal=DATA.config?.timerMinutes||30;
+  document.getElementById('app').innerHTML='<div style="overflow-y:auto;height:100dvh;padding:20px 16px 24px"><div style="max-width:360px;margin:0 auto;text-align:center">'
+    +'<div style="font-family:\'Press Start 2P\';font-size:11px;color:var(--gold);margin-bottom:8px">Salle d\'attente</div>'
+    +'<div style="background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:14px;margin-bottom:16px">'
+    +'<div style="font-size:11px;color:var(--gray);margin-bottom:6px">Code de la partie</div>'
+    +'<div style="font-family:\'Press Start 2P\';font-size:28px;color:var(--gold);letter-spacing:6px">'+code+'</div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-top:6px">Partage ce code avec tes amis</div>'
+    +'</div>'
+    +'<div style="background:var(--panel);border:2px solid var(--border);border-radius:6px;padding:10px;margin-bottom:12px;display:flex;align-items:center;gap:10px">'
+    +'<div style="font-size:24px">'+arch.icon+'</div>'
+    +'<div style="text-align:left;flex:1"><div style="font-weight:800;font-size:14px">'+ME.pseudo+'</div><div style="font-size:11px;color:var(--gray)">'+playerTitle(ME)+'</div></div>'
+    +(isAdmin()?'<span style="font-size:10px;padding:3px 8px;background:var(--purple);border-radius:3px;color:#fff">👑</span>':'')+'</div>'
+    +'<div style="font-size:12px;color:var(--gray);margin-bottom:8px">'+cnt+' joueur'+(cnt>1?'s':'')+'</div>'
+    +ps.map(([pid2,p])=>'<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:4px;margin-bottom:4px">'
+      +'<div class="av" style="width:28px;height:28px;font-size:14px;background:'+(p.color1||'#404060')+';border-color:'+(ARCHETYPES[p.archetype]?.col||'var(--border)')+'">'+( ARCHETYPES[p.archetype]?.icon||'?')+'</div>'
+      +'<span style="font-size:12px;font-weight:700;flex:1">'+p.pseudo+(pid2===myId?' (moi)':'')+'</span>'
+      +(p.isAdmin?'<span style="font-size:10px;padding:2px 6px;background:var(--purple);border-radius:3px;color:#fff">👑</span>':'')
+      +(isAdmin()&&pid2!==myId?'<button style="background:var(--red);border:none;border-radius:3px;color:#fff;font-size:11px;padding:3px 8px;cursor:pointer" onclick="kickPlayer(\''+pid2+'\')">✕</button>':'')
+      +'</div>').join('')
+    +(isAdmin()?'<div style="margin-top:16px"><label style="font-size:12px;color:var(--gray)">Durée (min)</label><input id="tl" type="number" class="inp" value="'+timerVal+'" min="1" max="120" style="margin:8px 0"><button class="btn btn-gold" onclick="adminStart()">⚔️ Lancer la partie</button>'
+    +'<button class="btn btn-red" style="margin-top:8px" onclick="adminDeleteGame()">🗑️ Supprimer la partie</button></div>'
     :'<div style="font-size:12px;color:var(--gray);margin-top:16px">En attente du maître du jeu...</div>')
     +'</div></div>'
 }
+
+window.kickPlayer=async function(pid2){
+  const p=DATA.players[pid2];if(!p)return;
+  await DB.ref('/players/'+pid2).remove();
+  addEv('info',p.pseudo+' a été expulsé.',myId);
+  notify(p.pseudo+' expulsé','var(--orange)')
+};
+
+window.adminDeleteGame=async function(){
+  showModal('<div style="text-align:center;margin-bottom:16px;font-weight:800">Supprimer la partie ?<br><span style="font-size:12px;color:var(--gray)">Tous les joueurs seront déconnectés</span></div>'
+    +'<button class="btn btn-red" style="margin-bottom:8px" onclick="doDeleteGame()">Oui, supprimer</button>'
+    +'<button class="btn btn-gray" onclick="closeModal()">Annuler</button>')
+};
+window.doDeleteGame=async function(){
+  closeModal();
+  await DB.ref('/').set(DEF);
+  notify('Partie supprimée','var(--orange)')
+};
 
 // ══ END SCREEN ══
 function renderEnd(){
@@ -627,8 +725,9 @@ window.resetGame=async function(){
 window.doReset=async function(){
   closeModal();
   const keptPlayers=Object.fromEntries(Object.entries(DATA.players||{}).map(([id,p])=>[id,{...p,gold:0,hasObject:false,level:0,xp:0,skills:{search:{level:0,xp:0},steal:{level:0,xp:0},spy:{level:0,xp:0},talk:{level:0,xp:0}},pityCounts:{search:0,steal:0,spy:0,talk:0,negotiate:0},cooldowns:{},currentZone:null}]));
-  await DB.ref('/').set({...DEF,players:keptPlayers});
-  notify('Partie réinitialisée !','var(--green)')
+  const newCode=genCode();
+  await DB.ref('/').set({...DEF,config:{...DEF.config,timerMinutes:DATA.config?.timerMinutes||30,gameCode:newCode,gameId:Date.now(),scenario:'chercheur_menteur'},players:keptPlayers});
+  notify('Nouvelle partie — Code : '+newCode,'var(--green)')
 };
 
 // ══ MODAL ══
