@@ -1,4 +1,4 @@
-const CACHE = 'mj-v3';
+const CACHE = 'mj-v4';
 const PRECACHE = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
