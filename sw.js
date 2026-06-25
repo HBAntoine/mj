@@ -1,6 +1,13 @@
-const CACHE = 'mj-sprites-v1';
+const CACHE = 'mj-sprites-v2';
+const CACHE_FILES = [
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+];
 
-self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(CACHE_FILES)));
+  self.skipWaiting();
+});
 
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys =>
@@ -11,8 +18,8 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  // Sprites uniquement : cache-first
-  if (e.request.url.includes('/Sprite/')) {
+  // Sprites + icônes : cache-first
+  if (e.request.url.includes('/Sprite/') || e.request.url.includes('/icons/')) {
     e.respondWith(
       caches.match(e.request).then(cached => {
         if (cached) return cached;
