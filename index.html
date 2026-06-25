@@ -974,15 +974,11 @@ function startTimer(){
 // ══ INIT ══
 document.getElementById('app').innerHTML='<div class="loading"><div class="loading-title">MJ</div><div class="loading-sub">Connexion...</div></div>';
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js').then(reg=>{
-    reg.addEventListener('updatefound',()=>{
-      const nw=reg.installing;
-      nw.addEventListener('statechange',()=>{
-        if(nw.state==='activated')location.reload();
-      });
-    });
-  }).catch(()=>{});
-  navigator.serviceWorker.addEventListener('controllerchange',()=>location.reload());
+  let reloading=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(reloading)return;reloading=true;location.reload();
+  });
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 try{initFB()}catch(e){document.getElementById('app').innerHTML='<div style="padding:20px;color:#e04040;font-size:12px">Erreur : '+e.message+'</div>'}
 </script>
