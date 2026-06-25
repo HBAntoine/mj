@@ -640,7 +640,7 @@ window.onZoneCarte=function(zid){
   showModal('<div style="text-align:center;margin-bottom:14px">'
     +'<div style="font-size:36px">'+z.icon+'</div>'
     +'<div style="font-family:\'Press Start 2P\';font-size:10px;color:var(--gold);margin-top:8px">'+z.name+'</div>'
-    +(here.length?'<div style="font-size:12px;color:var(--gray);margin-top:6px">'+here.length+' joueur'+(here.length>1?'s')+' présent'+(here.length>1?'s':'')+' : '+here.map(p=>p.name).join(', ')+'</div>':'')
+    +(here.length?'<div style="font-size:12px;color:var(--gray);margin-top:6px">'+here.length+' joueur'+(here.length>1?'s':'')+' présent'+(here.length>1?'s':'')+' : '+here.map(p=>p.name).join(', ')+'</div>':'')
     +'</div>'
     +(isMine?'<button class="btn btn-green" style="margin-bottom:8px" onclick="doFouille()"'+(canFouille?'':' disabled')+'>🔍 Fouiller</button>'
       +(ME?.hasObject?'<button class="btn btn-gray" style="margin-bottom:8px" onclick="closeModal();doHideObj(\''+zid+'\')">🙈 Cacher l\'objet</button>':'')
