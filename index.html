@@ -13,7 +13,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 </head>
 <style>
-/* ── Variables ── */
 :root{
   --bg:#0a0a1a;--bg2:#111128;--panel:#1a1a3a;--border:#3a3a6a;
   --gold:#f0c040;--green:#40c080;--red:#e04040;--blue:#4080f0;
@@ -25,143 +24,182 @@ html,body{height:100%;background:var(--bg);color:var(--white);font-family:'Nunit
 
 /* ── Layout ── */
 #app{height:100dvh;display:flex;flex-direction:column;max-width:480px;margin:0 auto}
-.screen{flex:1;overflow-y:auto;padding:12px;padding-bottom:72px}
+.screen{flex:1;overflow-y:auto;padding:0 0 68px;animation:fadein .2s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 
 /* ── Loading ── */
 .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100dvh;gap:16px}
 .loading-title{font-family:'Press Start 2P';font-size:14px;color:var(--gold)}
 .loading-sub{font-size:12px;color:var(--gray)}
 
-/* ── Header ── */
-.hdr{padding:10px 12px;background:var(--bg2);border-bottom:2px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
-.hdr img{width:52px;height:52px;image-rendering:pixelated;object-fit:contain;flex-shrink:0}
-.hdr-info{flex:1;min-width:0}
-.hdr-name{font-family:'Press Start 2P';font-size:8px;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hdr-sub{font-size:10px;color:var(--gray);margin-top:3px}
-.hdr-right{text-align:right;flex-shrink:0}
-.hdr-gold{font-weight:800;font-size:16px;color:var(--gold)}
+/* ── Game header (timer only) ── */
+.ghdr{padding:8px 14px;background:var(--bg2);border-bottom:2px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;min-height:44px}
+.ghdr-timer{font-family:'Press Start 2P';font-size:14px;color:var(--gold)}
+.ghdr-timer.warn{color:var(--red);animation:blink 1s infinite}
+.ghdr-right{display:flex;align-items:center;gap:8px}
 
 /* ── Nav ── */
 .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;height:60px;background:var(--bg2);border-top:2px solid var(--border);display:flex;z-index:100}
-.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10px;color:var(--gray);cursor:pointer;border:none;background:none;padding:4px}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:9px;color:var(--gray);cursor:pointer;border:none;background:none;padding:4px;transition:color .15s}
 .nb.active{color:var(--gold)}
-.ni{font-size:20px}
+.ni{font-size:22px}
 
-/* ── Cards ── */
-.card{background:var(--panel);border:2px solid var(--border);border-radius:4px;padding:12px;margin-bottom:10px}
+/* ── HERO SCREEN ── */
+.hero-screen{padding:12px 14px 0;display:flex;flex-direction:column;align-items:center}
+
+/* Zone chip */
+.zone-chip{display:flex;align-items:center;justify-content:space-between;width:100%;background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:7px 12px 7px 14px;margin-bottom:14px;cursor:pointer;transition:border-color .15s}
+.zone-chip:active{border-color:var(--gold)}
+.zone-name{font-size:13px;font-weight:700}
+.zone-chip-btn{font-size:11px;color:var(--gold);font-weight:800;white-space:nowrap}
+
+/* Sprite wrapper + animations */
+.hero-sprite-wrap{position:relative;margin-bottom:10px;cursor:pointer}
+.hero-sprite-wrap::after{content:'TAP';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);font-family:'Press Start 2P';font-size:6px;color:var(--gold);opacity:.5;letter-spacing:2px}
+.hero-sprite{image-rendering:pixelated;object-fit:contain;display:block}
+.hero-sprite.s0{animation:float 3.5s ease-in-out infinite}
+.hero-sprite.s1{animation:float 3s ease-in-out infinite,glow1 3s ease-in-out infinite}
+.hero-sprite.s2{animation:float 2.5s ease-in-out infinite,glow2 2.5s ease-in-out infinite}
+.hero-sprite.s3{animation:float 2s ease-in-out infinite,glow3 2s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes glow1{0%,100%{filter:drop-shadow(0 4px 8px rgba(64,128,240,.4))}50%{filter:drop-shadow(0 4px 16px rgba(64,128,240,.8))}}
+@keyframes glow2{0%,100%{filter:drop-shadow(0 4px 10px rgba(160,64,240,.5))}50%{filter:drop-shadow(0 4px 20px rgba(160,64,240,.9))}}
+@keyframes glow3{0%,100%{filter:drop-shadow(0 4px 12px rgba(240,192,64,.6))}50%{filter:drop-shadow(0 6px 24px rgba(240,192,64,1))}}
+
+/* Character info */
+.hero-name{font-family:'Press Start 2P';font-size:10px;color:var(--gold);text-align:center;margin-bottom:4px}
+.hero-title{font-size:12px;color:var(--gray);text-align:center;margin-bottom:10px}
+.xp-bar{background:var(--dim);height:8px;border-radius:4px;overflow:hidden;margin:6px 0}
+.xp-fill{height:100%;transition:width .6s ease;border-radius:4px}
+.xp-label{font-size:10px;color:var(--gray);text-align:center;margin-bottom:14px}
+
+/* Action buttons */
+.hero-actions{width:100%;margin-top:4px}
+.action-row{display:flex;gap:8px;margin-bottom:8px}
+.action-btn{flex:1;background:var(--panel);border:2px solid var(--border);border-radius:8px;padding:10px 6px;text-align:center;cursor:pointer;transition:border-color .15s,transform .1s}
+.action-btn:active{transform:scale(.95)}
+.action-btn.available{border-color:var(--border)}
+.action-btn.available:active{border-color:var(--gold)}
+.action-btn.disabled{opacity:.35;cursor:not-allowed}
+.action-btn.highlight{border-color:var(--gold);background:rgba(240,192,64,.08)}
+.action-icon{font-size:22px;margin-bottom:4px}
+.action-label{font-size:10px;font-weight:700;color:var(--white)}
+.action-sub{font-size:9px;color:var(--gray);margin-top:2px}
+
+/* Zone presence */
+.zone-players{width:100%;margin-top:4px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px}
+.zone-players-title{font-size:10px;color:var(--gray);margin-bottom:6px}
+.zone-player-row{display:flex;align-items:center;gap:8px;padding:4px 0}
+.zone-player-row img{width:36px;height:36px;image-rendering:pixelated;object-fit:contain}
+
+/* ── Cards & Panels ── */
+.card{background:var(--panel);border:2px solid var(--border);border-radius:6px;padding:12px;margin-bottom:10px}
 .ct{font-family:'Press Start 2P';font-size:8px;color:var(--gold);margin-bottom:8px}
 .panel{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:10px;margin-bottom:8px}
 
 /* ── Buttons ── */
-.btn{display:block;width:100%;padding:12px 16px;border:2px solid;border-radius:4px;font-family:'Nunito';font-weight:800;font-size:14px;cursor:pointer;text-align:center;transition:transform .1s}
-.btn:active{transform:scale(.97)}
-.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn{display:block;width:100%;padding:12px 16px;border:2px solid;border-radius:4px;font-family:'Nunito';font-weight:800;font-size:14px;cursor:pointer;text-align:center;transition:transform .1s,opacity .15s}
+.btn:active{transform:scale(.97)}.btn:disabled{opacity:.4;cursor:not-allowed}
 .btn-gold{background:var(--gold);border-color:#c09020;color:#0a0a1a}
 .btn-blue{background:var(--blue);border-color:#2060c0;color:#fff}
 .btn-red{background:var(--red);border-color:#a02020;color:#fff}
 .btn-green{background:var(--green);border-color:#208060;color:#0a0a1a}
 .btn-gray{background:var(--dim);border-color:var(--gray);color:var(--white)}
+.btn-purple{background:var(--purple);border-color:#7020b0;color:#fff}
 .btn-sm{padding:8px 12px;font-size:12px;width:auto;display:inline-block}
 
 /* ── Input ── */
 .inp{width:100%;padding:12px;background:var(--panel);border:2px solid var(--border);border-radius:4px;color:var(--white);font-family:'Nunito';font-size:16px;margin-bottom:12px;outline:none}
 .inp:focus{border-color:var(--gold)}
 .pin-inp{font-family:'Press Start 2P';font-size:20px;text-align:center;letter-spacing:4px}
+textarea.inp{resize:none;height:80px;font-size:14px;line-height:1.5}
 
 /* ── Flow screen ── */
 .flow{display:flex;flex-direction:column;align-items:center;min-height:100dvh;padding:24px 20px 32px;background:var(--bg);overflow-y:auto}
 .flow-inner{width:100%;max-width:360px}
 .flow-title{font-family:'Press Start 2P';font-size:12px;color:var(--gold);text-align:center;line-height:1.8;margin-bottom:6px}
 .flow-sub{font-size:12px;color:var(--gray);text-align:center;margin-bottom:20px}
-
-/* ── Step dots ── */
 .steps{display:flex;gap:8px;justify-content:center;margin-bottom:24px}
 .step-dot{width:10px;height:10px;border-radius:50%;background:var(--dim)}
-.step-dot.done{background:var(--green)}
-.step-dot.active{background:var(--gold)}
+.step-dot.done{background:var(--green)}.step-dot.active{background:var(--gold)}
 
-/* ── Classe grid (2 cols, step 2) ── */
+/* ── Class / Genre grids ── */
 .classe-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;width:100%}
 .classe-card{background:var(--panel);border:2px solid var(--border);border-radius:6px;padding:12px 8px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
-.classe-card:active{transform:scale(.97)}
-.classe-card.sel{border-color:var(--gold);background:rgba(240,192,64,.08)}
-.classe-card .cc-sprite{width:100px;height:100px;image-rendering:pixelated;object-fit:contain;display:block;margin:0 auto 8px}
+.classe-card:active{transform:scale(.97)}.classe-card.sel{border-color:var(--gold);background:rgba(240,192,64,.08)}
+.classe-card img{width:96px;height:96px;image-rendering:pixelated;object-fit:contain;display:block;margin:0 auto 8px}
 .classe-card .cc-name{font-family:'Press Start 2P';font-size:7px;color:var(--white);margin-bottom:4px}
 .classe-card .cc-desc{font-size:10px;color:var(--gray)}
-
-/* ── Genre grid (2 cols, step 3) ── */
 .genre-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%}
 .genre-card{background:var(--panel);border:2px solid var(--border);border-radius:6px;padding:14px 8px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
-.genre-card:active{transform:scale(.97)}
-.genre-card.sel{border-color:var(--gold);background:rgba(240,192,64,.08)}
-.genre-card .gc-sprite{width:130px;height:130px;image-rendering:pixelated;object-fit:contain;display:block;margin:0 auto 10px}
+.genre-card:active{transform:scale(.97)}.genre-card.sel{border-color:var(--gold);background:rgba(240,192,64,.08)}
+.genre-card img{width:120px;height:120px;image-rendering:pixelated;object-fit:contain;display:block;margin:0 auto 10px}
 .genre-card .gc-label{font-family:'Press Start 2P';font-size:8px;color:var(--white)}
 
-/* ── Player rows ── */
+/* ── Wait room ── */
+.wait-code{font-family:'Press Start 2P';font-size:28px;color:var(--gold);letter-spacing:6px;text-align:center;margin:8px 0}
+.wait-pr{display:flex;align-items:center;gap:10px;padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:6px;margin-bottom:8px}
+.wait-pr img{width:56px;height:56px;image-rendering:pixelated;object-fit:contain;flex-shrink:0}
+
+/* ── Joueurs list ── */
 .pr{display:flex;align-items:center;gap:10px;padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:4px;margin-bottom:8px;cursor:pointer}
-.pr img{width:72px;height:72px;image-rendering:pixelated;object-fit:contain;flex-shrink:0}
+.pr img{width:64px;height:64px;image-rendering:pixelated;object-fit:contain;flex-shrink:0}
 .pr-info{flex:1;min-width:0}
 .pr-name{font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pr-sub{font-size:11px;color:var(--gray);margin-top:2px}
 .pr-right{text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 
-/* ── Wait room ── */
-.wait-code{font-family:'Press Start 2P';font-size:28px;color:var(--gold);letter-spacing:6px;text-align:center;margin:8px 0}
-.wait-pr{display:flex;align-items:center;gap:10px;padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:6px;margin-bottom:8px}
-.wait-pr img{width:60px;height:60px;image-rendering:pixelated;object-fit:contain;flex-shrink:0}
-
-/* ── Zone grid ── */
+/* ── Carte ── */
+.carte-wrap{padding:12px}
 .zg{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-.zc{background:var(--panel);border:2px solid var(--border);border-radius:6px;padding:14px 10px;text-align:center;cursor:pointer;transition:border-color .15s}
-.zc:active{border-color:var(--gold)}
-.zc.obj{border-color:var(--gold);box-shadow:0 0 8px rgba(240,192,64,.4)}
-.zc.mine{border-color:var(--blue)}
+.zc{background:var(--panel);border:2px solid var(--border);border-radius:8px;padding:14px 10px;text-align:center;cursor:pointer;transition:border-color .15s,transform .1s}
+.zc:active{transform:scale(.97)}.zc.obj{border-color:var(--gold);box-shadow:0 0 10px rgba(240,192,64,.4)}
+.zc.mine{border-color:var(--blue);background:rgba(64,128,240,.08)}
+.zc.mine.obj{border-color:var(--gold)}
+.zc-count{font-size:10px;color:var(--purple);margin-top:4px;font-weight:700}
 
 /* ── Journal ── */
-.ev{padding:8px 10px;border-left:3px solid var(--border);margin-bottom:6px;font-size:12px;line-height:1.5}
-.ev.success{border-color:var(--green)}.ev.fail{border-color:var(--red)}.ev.info{border-color:var(--blue)}.ev.critical{border-color:var(--gold)}
+.ev{padding:10px 12px;border-left:3px solid var(--border);margin-bottom:8px;font-size:12px;line-height:1.6}
+.ev.success{border-color:var(--green)}.ev.fail{border-color:var(--red)}.ev.info{border-color:var(--blue)}.ev.critical{border-color:var(--gold)}.ev.mj{border-color:var(--purple)}
+.ev-time{font-size:10px;color:var(--gray);margin-top:4px}
+
+/* ── Dice ── */
+.dice-result{text-align:center;padding:16px 0}
+.dice-num{font-family:'Press Start 2P';font-size:48px;margin:8px 0;animation:dice-pop .3s ease}
+@keyframes dice-pop{0%{transform:scale(.6) rotate(-8deg)}70%{transform:scale(1.15) rotate(2deg)}100%{transform:scale(1) rotate(0)}}
+.dice-label{font-size:15px;font-weight:800;margin-bottom:12px}
+.dice-text{font-size:13px;line-height:1.7;white-space:pre-line;color:var(--white)}
+.dice-xp{font-size:12px;color:var(--blue);margin-top:8px;font-weight:700}
 
 /* ── Modal ── */
-.mb{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;align-items:flex-end;justify-content:center}
-.mo{background:var(--bg2);border-top:2px solid var(--border);border-radius:12px 12px 0 0;width:100%;max-width:480px;padding:20px;max-height:80dvh;overflow-y:auto}
+.mb{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.mo{background:var(--bg2);border-top:2px solid var(--border);border-radius:14px 14px 0 0;width:100%;max-width:480px;padding:20px;max-height:82dvh;overflow-y:auto}
 
 /* ── Notification ── */
-.notif{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--panel);border:2px solid var(--gold);border-radius:6px;padding:10px 16px;font-size:13px;font-weight:700;z-index:300;max-width:340px;text-align:center;animation:nfade .3s ease;pointer-events:none}
+.notif{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:10px 18px;font-size:13px;font-weight:700;z-index:300;max-width:340px;text-align:center;animation:nfade .3s ease;pointer-events:none}
 @keyframes nfade{from{transform:translateX(-50%) translateY(-14px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
 
-/* ── Timer ── */
-.timer-bar{background:var(--panel);border:2px solid var(--border);border-radius:4px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
-.tv{font-family:'Press Start 2P';font-size:16px;color:var(--gold)}
-.tv.warn{color:var(--red);animation:blink 1s infinite}
-@keyframes blink{50%{opacity:.4}}
-
-/* ── XP / Skill ── */
-.xp-bar{background:var(--dim);height:7px;border-radius:4px;overflow:hidden;margin:4px 0}
-.xp-fill{height:100%;transition:width .5s}
-.sk-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.sk-stars{color:var(--gold);font-size:14px;min-width:52px;text-align:right}
-
 /* ── Badges ── */
-.badge{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:700;white-space:nowrap}
+.badge{font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700}
 .badge-admin{background:var(--purple);color:#fff}
 .badge-obj{background:var(--gold);color:#0a0a1a}
-.badge-me{background:var(--dim);color:var(--gray)}
+.badge-cd{background:var(--dim);color:var(--orange);font-size:9px}
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar{width:4px}
-::-webkit-scrollbar-track{background:var(--bg)}
+/* ── Misc ── */
+@keyframes blink{50%{opacity:.3}}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.sk-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.sk-stars{color:var(--gold);font-size:14px;min-width:52px;text-align:right}
 </style>
 <body>
 <div id="app"><div class="loading"><div class="loading-title">MJ</div><div class="loading-sub">Chargement...</div></div></div>
 <script>
-window.onerror = function(m,s,l){
-  document.getElementById('app').innerHTML = '<div style="padding:20px;color:#e04040;font-size:12px;word-break:break-all">Erreur L'+l+': '+m+'</div>';
-  return true;
-};
+window.onerror=function(m,s,l){document.getElementById('app').innerHTML='<div style="padding:20px;color:#e04040;font-size:12px;word-break:break-all">Erreur L'+l+': '+m+'</div>';return true};
 
-// ══ FIREBASE CONFIG ══
-const FB_CFG = {
+// ══ CONFIG FIREBASE ══
+const FB_CFG={
   apiKey:"AIzaSyARVKSCufGwhXEj-0-BFKDagJu9e4ubb6U",
   authDomain:"mj-maitre-du-jeu.firebaseapp.com",
   databaseURL:"https://mj-maitre-du-jeu-default-rtdb.europe-west1.firebasedatabase.app",
@@ -172,57 +210,44 @@ const FB_CFG = {
 };
 
 // ══ CONSTANTES ══
-const ZONES = {
+const ZONES={
   preau:{name:'Préau',icon:'🏛️'},cuisineExt:{name:'Cuisine Ext.',icon:'🔥'},
   jardin:{name:'Jardin',icon:'🌿'},parking:{name:'Parking',icon:'🚗'},
   piscine:{name:'Piscine',icon:'💧'},cuisine:{name:'Cuisine',icon:'🍳'},
   salon:{name:'Salon',icon:'🛋️'},entree:{name:'Entrée',icon:'🚪'},
   bar:{name:'Bar',icon:'🍺'},bibliotheque:{name:'Bibliothèque',icon:'📚'}
 };
-
-const CLASSES = ['Guerrier','Mage','Voleur','Barde','Druide','Nain'];
-
-const CLASS_INFO = {
-  Guerrier:{icon:'⚔️',desc:'Force & Combat',     bonus:'vol'},
-  Mage:    {icon:'🔮',desc:'Magie & Espionnage',  bonus:'espionnage'},
-  Voleur:  {icon:'🗡️',desc:'Discrétion & Vol',    bonus:'vol'},
-  Barde:   {icon:'🎵',desc:'Charme & Négo',       bonus:'parole'},
-  Druide:  {icon:'🌿',desc:'Nature & Fouille',     bonus:'fouille'},
-  Nain:    {icon:'⛏️',desc:'Fouille & Résistance', bonus:'fouille'}
+const CLASSES=['Guerrier','Mage','Voleur','Barde','Druide','Nain'];
+const CLASS_INFO={
+  Guerrier:{icon:'⚔️',desc:'Force & Combat',bonus:'vol'},
+  Mage:{icon:'🔮',desc:'Magie & Espionnage',bonus:'espionnage'},
+  Voleur:{icon:'🗡️',desc:'Discrétion & Vol',bonus:'vol'},
+  Barde:{icon:'🎵',desc:'Charme & Négo',bonus:'parole'},
+  Druide:{icon:'🌿',desc:'Nature & Fouille',bonus:'fouille'},
+  Nain:{icon:'⛏️',desc:'Fouille & Résistance',bonus:'fouille'}
 };
-
-const TITLES = {
-  Guerrier:['Écuyer',     'Chevalier',   'Paladin',     'Grand Paladin'],
-  Mage:    ['Érudit',     'Mage',        'Archimage',   'Grand Archimage'],
-  Voleur:  ['Gamin',      'Filou',       'Ombre',       'Maître des Ombres'],
-  Barde:   ['Troubadour', 'Barde',       'Ménestrel',   'Grand Ménestrel'],
-  Druide:  ['Initié',     'Druide',      'Archidruide', 'Druide Ancestral'],
-  Nain:    ['Mineur',     'Forgeron',    'Maître Mineur','Roi des Nains']
+const TITLES={
+  Guerrier:['Écuyer','Chevalier','Paladin','Grand Paladin'],
+  Mage:['Érudit','Mage','Archimage','Grand Archimage'],
+  Voleur:['Gamin','Filou','Ombre','Maître des Ombres'],
+  Barde:['Troubadour','Barde','Ménestrel','Grand Ménestrel'],
+  Druide:['Initié','Druide','Archidruide','Druide Ancestral'],
+  Nain:['Mineur','Forgeron','Maître Mineur','Roi des Nains']
 };
-
-const SKILLS = {
-  fouille:    {label:'Fouille',    icon:'🔍'},
-  vol:        {label:'Vol',        icon:'🤏'},
-  espionnage: {label:'Espionnage', icon:'👁️'},
-  parole:     {label:'Parole',     icon:'💬'}
-};
-
-// XP seuils pour stades sprites : Base / L1 / L2 / L3
-const XP_STADE = [0, 100, 300, 600];
-const STADES   = ['Base','L1','L2','L3'];
-
-// XP seuils compétences 0→1 / 1→2 / 2→3
-const XP_SKILL = [10, 30, 60];
-
-const DEF = {
+const SKILLS={fouille:{label:'Fouille',icon:'🔍'},vol:{label:'Vol',icon:'🤏'},espionnage:{label:'Espionnage',icon:'👁️'},parole:{label:'Parole',icon:'💬'}};
+const XP_STADE=[0,100,300,600];
+const STADES=['Base','L1','L2','L3'];
+const XP_SKILL=[10,30,60];
+const RESULT_LABELS={critical_fail:'💀 Échec Critique',fail:'✗ Échec',success:'✓ Succès',strong_success:'★ Succès Fort',critical:'⚡ Succès Critique'};
+const DEF={
   game:{status:'lobby',objectZone:null,objectHolder:null,timerEnd:null,startedAt:null,winner:null,winnerMsg:null},
   config:{timerMinutes:30,activeZones:Object.keys(ZONES),cooldownRatio:0.12,gameCode:null,gameId:null},
   players:{},events:[],zones:{}
 };
 
 // ══ STATE ══
-let DB, DATA=null, ME=null, myId, myPin;
-let curTab='carte', timerIv=null, notifT=null, creating=false;
+let DB,DATA=null,ME=null,myId,myPin;
+let curTab='hero',timerIv=null,notifT=null,creating=false;
 let flow={mode:null,step:1,data:{name:'',classe:'',genre:'',pin:'',code:''}};
 
 // ══ UTILS ══
@@ -230,45 +255,28 @@ function pid(){let id=localStorage.getItem('mj_pid');if(!id){id='p'+Math.random(
 function getPin(){return localStorage.getItem('mj_pin')||null}
 function savePin(p){localStorage.setItem('mj_pin',p);myPin=p}
 function isAdmin(){return ME&&ME.isAdmin===true}
+function stadeOf(xp){return xp>=600?3:xp>=300?2:xp>=100?1:0}
+function playerTitle(p){return(TITLES[p.classe]||TITLES.Guerrier)[stadeOf(p.xp||0)]}
 function genCode(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from({length:4},()=>c[Math.floor(Math.random()*c.length)]).join('')}
 function fmtTs(ts){if(!ts)return'';const d=new Date(ts);return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
 function fmtMs(ms){const s=Math.ceil(ms/1000);return s>=60?Math.floor(s/60)+'m'+(s%60)+'s':s+'s'}
+function timerStr(){if(!DATA?.game?.timerEnd)return'--:--';const r=DATA.game.timerEnd-Date.now();if(r<=0)return'00:00';return Math.floor(r/60000).toString().padStart(2,'0')+':'+Math.floor((r%60000)/1000).toString().padStart(2,'0')}
+function cdMs(){return(DATA?.config?.timerMinutes||30)*0.12*60000}
+function cdOk(tid){return Date.now()-(ME?.cooldowns?.[tid]||0)>cdMs()}
+function cdLeft(tid){return Math.max(0,cdMs()-(Date.now()-(ME?.cooldowns?.[tid]||0)))}
 
-function stadeOf(xp){return xp>=600?3:xp>=300?2:xp>=100?1:0}
-
-function spriteSrc(classe,genre,xp){
-  // Druide_Male_Base est nommé Druide_Male.png (exception)
-  const st=STADES[stadeOf(xp||0)];
-  return 'Sprite/'+classe+'/'+classe+'_'+genre+'_'+st+'.png';
-}
-function spriteFallback(classe,genre){
-  // fallback sans _Base (ex: Druide_Male.png)
-  return 'Sprite/'+classe+'/'+classe+'_'+genre+'.png';
-}
-
-function sImg(classe,genre,xp,size,extraStyle){
-  size=size||80;
-  if(!classe||!genre)return'<div style="width:'+size+'px;height:'+size+'px;background:var(--dim);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:'+(size*.35)+'px">'+(CLASS_INFO[classe]?.icon||'❓')+'</div>';
-  const src=spriteSrc(classe,genre,xp);
-  const fb=spriteFallback(classe,genre);
-  return'<img src="'+src+'" width="'+size+'" height="'+size
-    +'" style="image-rendering:pixelated;object-fit:contain'+(extraStyle?';'+extraStyle:'')+'" loading="lazy"'
-    +' onerror="if(this.src!==\''+fb+'\'){this.src=\''+fb+'\'}else{this.style.opacity=.2}">';
-}
-
-function playerTitle(p){return(TITLES[p.classe]||TITLES.Guerrier)[stadeOf(p.xp||0)]}
-
-function timerStr(){
-  if(!DATA?.game?.timerEnd)return'--:--';
-  const r=DATA.game.timerEnd-Date.now();
-  if(r<=0)return'00:00';
-  return Math.floor(r/60000).toString().padStart(2,'0')+':'+Math.floor((r%60000)/1000).toString().padStart(2,'0')
+function spriteSrc(classe,genre,xp){return'Sprite/'+classe+'/'+classe+'_'+genre+'_'+STADES[stadeOf(xp||0)]+'.png'}
+function spriteFb(classe,genre){return'Sprite/'+classe+'/'+classe+'_'+genre+'.png'}
+function sImg(classe,genre,xp,size,cls){
+  if(!classe||!genre)return'<div style="width:'+size+'px;height:'+size+'px;background:var(--dim);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:'+(size*.3)+'px">'+(CLASS_INFO[classe]?.icon||'❓')+'</div>';
+  const src=spriteSrc(classe,genre,xp),fb=spriteFb(classe,genre);
+  return'<img src="'+src+'" width="'+size+'" height="'+size+'" class="'+(cls||'')+'" style="image-rendering:pixelated;object-fit:contain" loading="lazy" onerror="if(this.src!==\''+fb+'\'){this.src=\''+fb+'\'}else{this.style.opacity=.2}">';
 }
 
 function notify(msg,col){
   clearTimeout(notifT);document.querySelector('.notif')?.remove();
   const d=document.createElement('div');d.className='notif';d.style.borderColor=col||'var(--gold)';d.innerHTML=msg;
-  document.body.appendChild(d);notifT=setTimeout(()=>d.remove(),3000)
+  document.body.appendChild(d);notifT=setTimeout(()=>d.remove(),3500)
 }
 
 // ══ FIREBASE ══
@@ -303,12 +311,9 @@ function render(){
 // ══ HOME ══
 function renderHome(){
   creating=false;flow={mode:null,step:1,data:{name:'',classe:'',genre:'',pin:'',code:''}};
-  const code=DATA?.config?.gameCode;
-  const hasGame=code&&DATA?.game?.status==='lobby';
-  document.getElementById('app').innerHTML=
-    '<div class="flow"><div class="flow-inner" style="text-align:center">'
-    +'<div style="margin:8px 0 28px">'
-    +'<div class="flow-title" style="font-size:20px;margin-bottom:4px">MJ</div>'
+  const code=DATA?.config?.gameCode,hasGame=code&&DATA?.game?.status==='lobby';
+  document.getElementById('app').innerHTML='<div class="flow"><div class="flow-inner" style="text-align:center">'
+    +'<div style="margin:8px 0 32px"><div class="flow-title" style="font-size:22px;margin-bottom:4px">MJ</div>'
     +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gray);margin-bottom:10px">Maître du Jeu</div>'
     +'<div style="font-size:12px;color:var(--gray)">Jeu grandeur nature JRPG</div></div>'
     +(hasGame?'<div style="background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:14px;margin-bottom:20px">'
@@ -320,135 +325,76 @@ function renderHome(){
 }
 window.renderHome=renderHome;
 
-// ══ FLOW — CRÉATION / REJOINDRE ══
-function startFlow(mode){
-  creating=true;
-  flow={mode,step:1,data:{name:'',classe:'',genre:'',pin:'',code:''}};
-  renderFlow()
-}
+// ══ FLUX CRÉATION ══
+function startFlow(mode){creating=true;flow={mode,step:1,data:{name:'',classe:'',genre:'',pin:'',code:''}};renderFlow()}
 window.startFlow=startFlow;
-
 function totalSteps(){return flow.mode==='create'?4:5}
-
 function renderFlow(){document.getElementById('app').innerHTML='<div class="flow"><div class="flow-inner">'+flowHtml()+'</div></div>'}
-
-function dots(){
-  const n=totalSteps();
-  return'<div class="steps">'+Array.from({length:n},(_,i)=>'<div class="step-dot'+(i+1<flow.step?' done':i+1===flow.step?' active':'')+'"></div>').join('')+'</div>'
-}
+function dots(){const n=totalSteps();return'<div class="steps">'+Array.from({length:n},(_,i)=>'<div class="step-dot'+(i+1<flow.step?' done':i+1===flow.step?' active':'')+'"></div>').join('')+'</div>'}
 
 function flowHtml(){
-  const s=flow.step,d=flow.data,m=flow.mode;
-  // Pour "créer" : 1=pseudo 2=classe 3=genre 4=pin
-  // Pour "rejoindre" : 1=code 2=pseudo 3=classe 4=genre 5=pin
-  const isJoin=m==='join';
-  const codeStep=isJoin?1:null;
-  const nameStep=isJoin?2:1;
-  const classeStep=isJoin?3:2;
-  const genreStep=isJoin?4:3;
-  const pinStep=isJoin?5:4;
-
-  if(s===codeStep){
-    return'<div class="flow-title" style="font-size:11px">Rejoindre une partie</div>'
-      +'<div class="flow-sub">Code de partie (4 caractères)</div>'
-      +dots()
-      +'<input id="f-code" class="inp pin-inp" placeholder="ABCD" maxlength="4" style="text-transform:uppercase" autocomplete="off">'
-      +'<button class="btn btn-blue" onclick="flowNext()">Rejoindre →</button>'
-      +'<button class="btn btn-gray" style="margin-top:8px" onclick="renderHome()">← Retour</button>'
-  }
-
-  if(s===nameStep){
-    const label=m==='create'?'Nouvelle partie':'Ton aventurier';
-    return'<div class="flow-title" style="font-size:11px">'+label+'</div>'
-      +'<div class="flow-sub">Choisis ton nom d\'aventurier</div>'
-      +dots()
-      +'<input id="f-name" class="inp" placeholder="Pseudo..." maxlength="20" value="'+d.name+'" autocomplete="off">'
-      +'<button class="btn btn-gold" onclick="flowNext()">Continuer →</button>'
-      +'<button class="btn btn-gray" style="margin-top:8px" onclick="flowBack()">← Retour</button>'
-  }
-
-  if(s===classeStep){
+  const s=flow.step,d=flow.data,isJoin=flow.mode==='join';
+  const codeS=isJoin?1:null,nameS=isJoin?2:1,classeS=isJoin?3:2,genreS=isJoin?4:3,pinS=isJoin?5:4;
+  if(s===codeS)return'<div class="flow-title" style="font-size:11px">Rejoindre une partie</div>'
+    +'<div class="flow-sub">Code de partie (4 caractères)</div>'+dots()
+    +'<input id="f-code" class="inp pin-inp" placeholder="ABCD" maxlength="4" style="text-transform:uppercase" autocomplete="off">'
+    +'<button class="btn btn-blue" onclick="flowNext()">Rejoindre →</button>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="renderHome()">← Retour</button>';
+  if(s===nameS)return'<div class="flow-title" style="font-size:11px">'+(flow.mode==='create'?'Nouvelle partie':'Ton aventurier')+'</div>'
+    +'<div class="flow-sub">Choisis ton nom d\'aventurier</div>'+dots()
+    +'<input id="f-name" class="inp" placeholder="Pseudo..." maxlength="20" value="'+d.name+'" autocomplete="off">'
+    +'<button class="btn btn-gold" onclick="flowNext()">Continuer →</button>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="flowBack()">← Retour</button>';
+  if(s===classeS){
     const grid=CLASSES.map(k=>'<div class="classe-card'+(d.classe===k?' sel':'')+'" onclick="flowSet(\'classe\',\''+k+'\')">'
-      +'<img class="cc-sprite" src="'+spriteSrc(k,d.genre||'Male',0)+'"'
-      +' onerror="if(this.src!==\''+spriteFallback(k,d.genre||'Male')+'\'){this.src=\''+spriteFallback(k,d.genre||'Male')+'\'}else{this.style.opacity=.2}">'
-      +'<div class="cc-name">'+k+'</div>'
-      +'<div class="cc-desc">'+CLASS_INFO[k].desc+'</div></div>'
-    ).join('');
+      +'<img src="'+spriteSrc(k,d.genre||'Male',0)+'" onerror="if(this.src!==\''+spriteFb(k,d.genre||'Male')+'\'){this.src=\''+spriteFb(k,d.genre||'Male')+'\'}else{this.style.opacity=.2}">'
+      +'<div class="cc-name">'+k+'</div><div class="cc-desc">'+CLASS_INFO[k].desc+'</div></div>').join('');
     return'<div class="flow-title" style="font-size:11px">Ton archétype</div>'
-      +'<div class="flow-sub">Quelle est ta classe ?</div>'
-      +dots()
+      +'<div class="flow-sub">Quelle est ta classe ?</div>'+dots()
       +'<div class="classe-grid">'+grid+'</div>'
       +'<button class="btn btn-gold" style="margin-top:12px" onclick="flowNext()"'+(d.classe?'':' disabled')+'>Continuer →</button>'
-      +'<button class="btn btn-gray" style="margin-top:8px" onclick="flowBack()">← Retour</button>'
+      +'<button class="btn btn-gray" style="margin-top:8px" onclick="flowBack()">← Retour</button>';
   }
-
-  if(s===genreStep){
-    const mCard='<div class="genre-card'+(d.genre==='Male'?' sel':'')+'" onclick="flowSet(\'genre\',\'Male\')">'
-      +'<img class="gc-sprite" src="'+spriteSrc(d.classe,'Male',0)+'"'
-      +' onerror="if(this.src!==\''+spriteFallback(d.classe,'Male')+'\'){this.src=\''+spriteFallback(d.classe,'Male')+'\'}else{this.style.opacity=.2}">'
-      +'<div class="gc-label">♂ Masculin</div></div>';
-    const fCard='<div class="genre-card'+(d.genre==='Female'?' sel':'')+'" onclick="flowSet(\'genre\',\'Female\')">'
-      +'<img class="gc-sprite" src="'+spriteSrc(d.classe,'Female',0)+'">'
-      +'<div class="gc-label">♀ Féminin</div></div>';
+  if(s===genreS){
+    const mk=(g,lbl)=>'<div class="genre-card'+(d.genre===g?' sel':'')+'" onclick="flowSet(\'genre\',\''+g+'\')">'
+      +'<img src="'+spriteSrc(d.classe,g,0)+'" onerror="if(this.src!==\''+spriteFb(d.classe,g)+'\'){this.src=\''+spriteFb(d.classe,g)+'\'}else{this.style.opacity=.2}">'
+      +'<div class="gc-label">'+lbl+'</div></div>';
     return'<div class="flow-title" style="font-size:11px">'+d.classe+'</div>'
-      +'<div class="flow-sub">Choisis ton genre</div>'
-      +dots()
-      +'<div class="genre-grid">'+mCard+fCard+'</div>'
+      +'<div class="flow-sub">Choisis ton genre</div>'+dots()
+      +'<div class="genre-grid">'+mk('Male','♂ Masculin')+mk('Female','♀ Féminin')+'</div>'
       +'<button class="btn btn-gold" style="margin-top:12px" onclick="flowNext()"'+(d.genre?'':' disabled')+'>Continuer →</button>'
-      +'<button class="btn btn-gray" style="margin-top:8px" onclick="flowBack()">← Retour</button>'
+      +'<button class="btn btn-gray" style="margin-top:8px" onclick="flowBack()">← Retour</button>';
   }
-
-  if(s===pinStep){
-    return'<div class="flow-title" style="font-size:11px">PIN Secret</div>'
-      +'<div class="flow-sub">4 chiffres pour protéger ton inventaire</div>'
-      +dots()
-      +'<div style="display:flex;justify-content:center;margin-bottom:12px">'+sImg(d.classe,d.genre,0,120)+'</div>'
-      +'<div style="text-align:center;margin-bottom:16px">'
-      +'<div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold)">'+d.name+'</div>'
-      +'<div style="font-size:11px;color:var(--gray);margin-top:4px">'+(TITLES[d.classe]?.[0]||'')+' — '+d.classe+'</div>'
-      +'</div>'
-      +'<input id="f-pin" type="password" inputmode="numeric" class="inp pin-inp" placeholder="••••" maxlength="6">'
-      +'<button class="btn btn-gold" onclick="flowFinish()">Rejoindre la partie !</button>'
-      +'<button class="btn btn-gray" style="margin-top:8px" onclick="flowBack()">← Retour</button>'
-  }
-
-  return'<div style="color:var(--red)">Étape inconnue</div>'
+  if(s===pinS)return'<div class="flow-title" style="font-size:11px">PIN Secret</div>'
+    +'<div class="flow-sub">4 chiffres pour protéger ton inventaire</div>'+dots()
+    +'<div style="display:flex;justify-content:center;margin-bottom:12px">'+sImg(d.classe,d.genre,0,120,'hero-sprite s0')+'</div>'
+    +'<div style="text-align:center;margin-bottom:16px"><div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold)">'+d.name+'</div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-top:4px">'+(TITLES[d.classe]?.[0]||'')+' — '+d.classe+'</div></div>'
+    +'<input id="f-pin" type="password" inputmode="numeric" class="inp pin-inp" placeholder="••••" maxlength="6">'
+    +'<button class="btn btn-gold" onclick="flowFinish()">C\'est parti !</button>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="flowBack()">← Retour</button>';
+  return'';
 }
 
 window.flowNext=async function(){
-  const s=flow.step,d=flow.data,m=flow.mode;
-  const isJoin=m==='join';
-  const nameStep=isJoin?2:1;
-  const classeStep=isJoin?3:2;
-
+  const s=flow.step,d=flow.data,isJoin=flow.mode==='join';
+  const nameS=isJoin?2:1,classeS=isJoin?3:2;
   if(isJoin&&s===1){
     const v=document.getElementById('f-code')?.value?.toUpperCase().trim();
     if(!v||v.length!==4){notify('Code invalide (4 caractères)','var(--red)');return}
     const snap=await DB.ref('/config/gameCode').get();
-    if(!snap.val()||snap.val()!==v){notify('Code introuvable — vérifie avec l\'hôte','var(--red)');return}
+    if(!snap.val()||snap.val()!==v){notify('Code introuvable','var(--red)');return}
     d.code=v;
   }
-  if(s===nameStep){
-    const v=document.getElementById('f-name')?.value?.trim();
-    if(!v||v.length<2){notify('Pseudo trop court (2 caractères min.)','var(--red)');return}
-    d.name=v;
-  }
-  if(s===classeStep&&!d.classe){notify('Choisis une classe','var(--red)');return}
+  if(s===nameS){const v=document.getElementById('f-name')?.value?.trim();if(!v||v.length<2){notify('Pseudo trop court','var(--red)');return}d.name=v}
+  if(s===classeS&&!d.classe){notify('Choisis une classe','var(--red)');return}
   flow.step++;renderFlow()
 };
-
-window.flowBack=function(){
-  if(flow.step<=1){renderHome();return}
-  flow.step--;renderFlow()
-};
-
-window.flowSet=function(key,val){
-  flow.data[key]=val;renderFlow()
-};
-
+window.flowBack=function(){if(flow.step<=1){renderHome();return}flow.step--;renderFlow()};
+window.flowSet=function(key,val){flow.data[key]=val;renderFlow()};
 window.flowFinish=async function(){
   const pin=document.getElementById('f-pin')?.value;
-  if(!pin||pin.length<4){notify('PIN trop court (4 chiffres min.)','var(--red)');return}
+  if(!pin||pin.length<4){notify('PIN trop court (4 chiffres)','var(--red)');return}
   flow.data.pin=pin;savePin(pin);
   const d=flow.data,amAdmin=flow.mode==='create';
   if(amAdmin){
@@ -456,13 +402,10 @@ window.flowFinish=async function(){
     await DB.ref('/').set({...DEF,config:{...DEF.config,timerMinutes:30,gameCode:code,gameId:Date.now()}});
     addEv('info','Partie créée — Code : '+code,null);
   }
-  const player={
-    name:d.name,classe:d.classe,genre:d.genre,pin:d.pin,
-    xp:0,gold:0,
-    skills:{fouille:0,vol:0,espionnage:0,parole:0},
-    inventory:[],cooldowns:{},zone:null,
-    online:true,isAdmin:amAdmin,joinedAt:Date.now()
-  };
+  const player={name:d.name,classe:d.classe,genre:d.genre,pin:d.pin,
+    xp:0,gold:0,skills:{fouille:0,vol:0,espionnage:0,parole:0},skillXp:{fouille:0,vol:0,espionnage:0,parole:0},
+    pityCounts:{fouille:0,vol:0,espionnage:0,parole:0,negociation:0},
+    inventory:[],cooldowns:{},zone:null,online:true,isAdmin:amAdmin,joinedAt:Date.now()};
   await fbSet('/players/'+myId,player);
   addEv('info',d.name+(amAdmin?' crée':'  rejoint')+' la partie !',myId);
   creating=false;render()
@@ -471,57 +414,36 @@ window.flowFinish=async function(){
 // ══ SALLE D'ATTENTE ══
 function renderWait(){
   const ps=Object.entries(DATA.players||{}),code=DATA.config?.gameCode||'????',timer=DATA.config?.timerMinutes||30;
-  let h='<div style="overflow-y:auto;height:100dvh;padding:20px 16px 32px"><div style="max-width:360px;margin:0 auto">';
-  // Titre
-  h+='<div style="text-align:center;margin-bottom:16px"><div class="flow-title" style="font-size:10px">Salle d\'attente</div></div>';
-  // Code
-  h+='<div style="background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:16px;margin-bottom:16px;text-align:center">'
+  let h='<div style="overflow-y:auto;height:100dvh;padding:20px 16px 32px"><div style="max-width:360px;margin:0 auto">'
+    +'<div style="text-align:center;margin-bottom:16px"><div class="flow-title" style="font-size:10px">Salle d\'attente</div></div>'
+    +'<div style="background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:16px;margin-bottom:16px;text-align:center">'
     +'<div style="font-size:11px;color:var(--gray);margin-bottom:6px">Code de la partie</div>'
     +'<div class="wait-code">'+code+'</div>'
     +'<div style="font-size:11px;color:var(--gray);margin-top:6px">Partage ce code avec tes amis</div></div>';
-  // Profil du joueur
-  if(ME){
-    h+='<div style="background:var(--panel);border:2px solid var(--border);border-radius:6px;padding:12px;margin-bottom:16px;display:flex;align-items:center;gap:12px">'
-      +sImg(ME.classe,ME.genre,ME.xp||0,80)
-      +'<div style="flex:1"><div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold)">'+ME.name+'</div>'
-      +'<div style="font-size:11px;color:var(--gray);margin-top:4px">'+playerTitle(ME)+' — '+ME.classe+'</div>'
-      +(isAdmin()?'<div style="margin-top:6px"><span class="badge badge-admin">👑 Admin</span></div>':'')
-      +'</div></div>';
-  }
-  // Liste joueurs
+  if(ME)h+='<div style="background:var(--panel);border:2px solid var(--border);border-radius:6px;padding:12px;margin-bottom:16px;display:flex;align-items:center;gap:12px">'
+    +sImg(ME.classe,ME.genre,ME.xp||0,76,'hero-sprite s'+stadeOf(ME.xp||0))
+    +'<div style="flex:1"><div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold)">'+ME.name+'</div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-top:4px">'+playerTitle(ME)+' — '+ME.classe+'</div>'
+    +(isAdmin()?'<div style="margin-top:6px"><span class="badge badge-admin">👑 Maître du Jeu</span></div>':'')+'</div></div>';
   h+='<div style="font-size:12px;color:var(--gray);margin-bottom:8px">'+ps.length+' joueur'+(ps.length>1?'s':'')+' connecté'+(ps.length>1?'s':'')+'</div>';
-  ps.forEach(([pid2,p])=>{
-    h+='<div class="wait-pr">'
-      +sImg(p.classe,p.genre,p.xp||0,60)
-      +'<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:13px">'+p.name+'</div>'
-      +'<div style="font-size:11px;color:var(--gray)">'+playerTitle(p)+' — '+p.classe+'</div></div>'
-      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">'
-      +(p.isAdmin?'<span class="badge badge-admin">👑</span>':'')
-      +(pid2===myId?'<span class="badge badge-me">moi</span>':'')
-      +(isAdmin()&&pid2!==myId?'<button style="background:var(--red);border:none;border-radius:3px;color:#fff;font-size:11px;padding:3px 8px;cursor:pointer" onclick="kickPlayer(\''+pid2+'\')">✕</button>':'')
-      +'</div></div>';
-  });
-  // Contrôles admin
-  if(isAdmin()){
-    h+='<div style="margin-top:20px">'
-      +'<label style="font-size:12px;color:var(--gray)">Durée (minutes)</label>'
-      +'<input id="tl" type="number" class="inp" value="'+timer+'" min="1" max="120" style="margin:8px 0">'
-      +'<button class="btn btn-gold" onclick="adminStart()">⚔️ Lancer la partie</button>'
-      +'<button class="btn btn-red" style="margin-top:8px" onclick="confirmDeleteGame()">🗑️ Supprimer la partie</button>'
-      +'</div>';
-  } else {
-    h+='<div style="text-align:center;font-size:12px;color:var(--gray);margin-top:20px">En attente du maître du jeu...</div>';
-  }
+  ps.forEach(([pid2,p])=>{h+='<div class="wait-pr">'
+    +sImg(p.classe,p.genre,p.xp||0,56)
+    +'<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:13px">'+p.name+(pid2===myId?' <span style="color:var(--gray);font-size:10px">(moi)</span>':'')+'</div>'
+    +'<div style="font-size:11px;color:var(--gray)">'+playerTitle(p)+' — '+p.classe+'</div></div>'
+    +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">'
+    +(p.isAdmin?'<span class="badge badge-admin">👑</span>':'')
+    +(isAdmin()&&pid2!==myId?'<button style="background:var(--red);border:none;border-radius:3px;color:#fff;font-size:11px;padding:3px 8px;cursor:pointer" onclick="kickPlayer(\''+pid2+'\')">✕</button>':'')
+    +'</div></div>';});
+  if(isAdmin())h+='<div style="margin-top:20px">'
+    +'<label style="font-size:12px;color:var(--gray)">Durée (minutes)</label>'
+    +'<input id="tl" type="number" class="inp" value="'+timer+'" min="1" max="180" style="margin:8px 0">'
+    +'<button class="btn btn-gold" onclick="adminStart()">⚔️ Lancer la partie</button>'
+    +'<button class="btn btn-red" style="margin-top:8px" onclick="confirmDelete()">🗑️ Supprimer la partie</button></div>';
+  else h+='<div style="text-align:center;font-size:12px;color:var(--gray);margin-top:20px">En attente du Maître du Jeu...</div>';
   h+='</div></div>';
   document.getElementById('app').innerHTML=h
 }
-
-window.kickPlayer=async function(pid2){
-  const p=DATA.players[pid2];if(!p)return;
-  await DB.ref('/players/'+pid2).remove();
-  addEv('info',p.name+' a été expulsé.',myId);notify(p.name+' expulsé','var(--orange)')
-};
-
+window.kickPlayer=async function(pid2){const p=DATA.players[pid2];if(!p)return;await DB.ref('/players/'+pid2).remove();addEv('info',p.name+' a été expulsé.',myId);notify(p.name+' expulsé','var(--orange)')};
 window.adminStart=async function(){
   const inp=document.getElementById('tl')||document.getElementById('adm-t');
   const t=parseInt(inp?.value||30);
@@ -529,267 +451,513 @@ window.adminStart=async function(){
   const rz=zz[Math.floor(Math.random()*zz.length)];
   await fbUpd('/config',{timerMinutes:t});
   await fbUpd('/game',{status:'playing',objectZone:rz,objectHolder:null,timerEnd:Date.now()+t*60000,startedAt:Date.now()});
-  addEv('info','⚔️ Partie lancée ! Durée : '+t+' min',null);notify('Partie lancée !','var(--green)')
+  addEv('mj','⚔️ La quête commence ! Durée : '+t+' min. L\'objet a été caché...',null);
+  notify('Partie lancée !','var(--green)')
 };
+window.confirmDelete=function(){showModal('<div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:800">Supprimer la partie ?</div>'
+  +'<div style="font-size:12px;color:var(--gray);margin-top:6px">Tous les joueurs seront déconnectés</div></div>'
+  +'<button class="btn btn-red" style="margin-bottom:8px" onclick="doDelete()">Oui, supprimer</button>'
+  +'<button class="btn btn-gray" onclick="closeModal()">Annuler</button>')};
+window.doDelete=async function(){closeModal();await DB.ref('/').set(DEF);notify('Partie supprimée','var(--orange)')};
 
-window.confirmDeleteGame=function(){
-  showModal('<div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:800">Supprimer la partie ?</div>'
-    +'<div style="font-size:12px;color:var(--gray);margin-top:6px">Tous les joueurs seront déconnectés</div></div>'
-    +'<button class="btn btn-red" style="margin-bottom:8px" onclick="doDeleteGame()">Oui, supprimer</button>'
-    +'<button class="btn btn-gray" onclick="closeModal()">Annuler</button>')
-};
-window.doDeleteGame=async function(){
-  closeModal();await DB.ref('/').set(DEF);notify('Partie supprimée','var(--orange)')
-};
-
-// ══ JEU — LAYOUT PRINCIPAL ══
+// ══ JEU — LAYOUT ══
 function renderGame(){
   clearInterval(timerIv);
-  document.getElementById('app').innerHTML=hdr()+'<div class="screen" id="sc"></div>'+navHtml();
+  document.getElementById('app').innerHTML=gameHdr()+navHtml()+'<div class="screen" id="sc"></div>';
   renderTab();startTimer()
 }
-
-function hdr(){
-  if(!ME)return'';
-  const xp=ME.xp||0,s=stadeOf(xp);
-  const nextXp=s<3?XP_STADE[s+1]:null;
-  const pct=nextXp?Math.round((xp-XP_STADE[s])/(nextXp-XP_STADE[s])*100):100;
-  return'<div class="hdr">'
-    +sImg(ME.classe,ME.genre,xp,52)
-    +'<div class="hdr-info">'
-    +'<div class="hdr-name">'+ME.name+'</div>'
-    +'<div class="hdr-sub">'+playerTitle(ME)+' · '+(nextXp?xp+'/'+nextXp+' XP':'XP Max')+'</div>'
-    +'<div class="xp-bar" style="margin-top:4px"><div class="xp-fill" style="width:'+pct+'%;background:var(--purple)"></div></div>'
-    +'</div>'
-    +'<div class="hdr-right"><div class="hdr-gold">'+(ME.gold||0)+' 🪙</div>'
-    +(ME.hasObject?'<div style="font-size:11px;color:var(--gold)">🗝️ Objet</div>':'')
+function gameHdr(){
+  const r=DATA?.game?.timerEnd?DATA.game.timerEnd-Date.now():null;
+  const warn=r&&r<120000;
+  return'<div class="ghdr">'
+    +'<div style="font-size:11px;color:var(--gray)">⏱️ Timer</div>'
+    +'<div class="ghdr-timer'+(warn?' warn':'')+'">'+timerStr()+'</div>'
+    +'<div class="ghdr-right">'
+    +(ME?.hasObject?'<span class="badge badge-obj">🗝️ Objet</span>':'')
+    +(isAdmin()?'<span class="badge badge-admin">👑</span>':'')
     +'</div></div>'
 }
-
 function navHtml(){
-  const tabs=[{id:'carte',i:'🗺️',l:'Carte'},{id:'actions',i:'⚔️',l:'Actions'},{id:'joueurs',i:'👥',l:'Joueurs'},{id:'journal',i:'📜',l:'Journal'},{id:'inventaire',i:'🎒',l:'Sac'}];
+  const tabs=[{id:'hero',i:'🧙',l:'Héros'},{id:'carte',i:'🗺️',l:'Carte'},{id:'joueurs',i:'👥',l:'Joueurs'},{id:'journal',i:'📜',l:'Journal'},{id:'inventaire',i:'🎒',l:'Sac'}];
   return'<nav class="nav">'+tabs.map(t=>'<button class="nb'+(curTab===t.id?' active':'')+'" onclick="setTab(\''+t.id+'\')">'
     +'<span class="ni">'+t.i+'</span>'+t.l+'</button>').join('')+'</nav>'
 }
-
-window.setTab=function(t){
-  curTab=t;
-  document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick').includes("'"+t+"'")));
-  renderTab()
-};
-
+window.setTab=function(t){curTab=t;document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick').includes("'"+t+"'")));renderTab()};
 function renderTab(){
   const sc=document.getElementById('sc');if(!sc)return;
-  ({carte:rCarte,actions:rActions,joueurs:rJoueurs,journal:rJournal,inventaire:rInventaire}[curTab]||rCarte)().then
-    ? ({carte:rCarte,actions:rActions,joueurs:rJoueurs,journal:rJournal,inventaire:rInventaire}[curTab]||rCarte)().then(h=>sc.innerHTML=h)
-    : sc.innerHTML=({carte:rCarte,actions:rActions,joueurs:rJoueurs,journal:rJournal,inventaire:rInventaire}[curTab]||rCarte)()
+  const fns={hero:rHero,carte:rCarte,joueurs:rJoueurs,journal:rJournal,inventaire:rInventaire};
+  sc.innerHTML=(fns[curTab]||rHero)()
 }
 
-// ══ TAB : CARTE ══
+// ══ TAB HÉROS ══
+function rHero(){
+  const xp=ME?.xp||0,s=stadeOf(xp);
+  const nextXp=s<3?XP_STADE[s+1]:null;
+  const pct=nextXp?Math.round((xp-XP_STADE[s])/(nextXp-XP_STADE[s])*100):100;
+  const myZone=ME?.zone,zName=myZone&&ZONES[myZone]?ZONES[myZone].name:null;
+
+  // Joueurs dans la même zone (excluant soi)
+  const sameZone=myZone?Object.entries(DATA.players||{}).filter(([id,p])=>id!==myId&&p.zone===myZone):[];
+
+  // Zone chip
+  const zoneBlock='<div class="zone-chip" onclick="showZonePicker()">'
+    +'<div>'+(myZone?'<div style="font-size:10px;color:var(--gray)">Zone actuelle</div><div class="zone-name">'+ZONES[myZone].icon+' '+zName+'</div>':'<div class="zone-name" style="color:var(--gray)">📍 Aucune zone</div>')+'</div>'
+    +'<div class="zone-chip-btn">Changer →</div></div>';
+
+  // Sprite central (cliquable)
+  const spriteBlock='<div class="hero-sprite-wrap" onclick="showActionSheet()">'
+    +sImg(ME.classe,ME.genre,xp,160,'hero-sprite s'+s)+'</div>';
+
+  // Infos perso (sans or)
+  const infoBlock='<div style="width:100%;text-align:center">'
+    +'<div class="hero-name">'+ME.name+'</div>'
+    +'<div class="hero-title">'+playerTitle(ME)+' · '+ME.classe+'</div>'
+    +'<div style="width:100%;padding:0 20px">'
+    +'<div class="xp-bar"><div class="xp-fill" style="width:'+pct+'%;background:linear-gradient(90deg,var(--purple),var(--blue))"></div></div>'
+    +'<div class="xp-label">'+xp+(nextXp?' / '+nextXp+' XP':'  ✨ Maîtrise absolue')+' · '+STADES[s]+'</div></div></div>';
+
+  // Actions rapides
+  const canSocial=myZone&&sameZone.length>0;
+  const canFouille=myZone&&cdOk(myZone+'_fouille');
+  const fouilleCd=myZone&&!cdOk(myZone+'_fouille')?fmtMs(cdLeft(myZone+'_fouille')):null;
+
+  const actions='<div class="hero-actions">'
+    +'<div class="action-row">'
+    +mkActionBtn('🔍','Fouiller',myZone?ZONES[myZone]?.name:'Choisir une zone',canFouille,fouilleCd,'doFouille()')
+    +mkActionBtn('🤏','Voler',sameZone.length>0?sameZone.length+' joueur'+(sameZone.length>1?'s':''):myZone?'Seul ici':'Choisir zone',canSocial,null,'showTargets(\'vol\')')
+    +'</div><div class="action-row">'
+    +mkActionBtn('👁️','Espionner',sameZone.length>0?sameZone.length+' dispo':myZone?'Seul ici':'Choisir zone',canSocial,null,'showTargets(\'espionnage\')')
+    +mkActionBtn('💬','Parler',sameZone.length>0?sameZone.length+' dispo':myZone?'Seul ici':'Choisir zone',canSocial,null,'showTargets(\'parole\')')
+    +mkActionBtn('🤝','Négocier',sameZone.length>0?sameZone.length+' dispo':myZone?'Seul ici':'Choisir zone',canSocial,null,'showTargets(\'negociation\')')
+    +'</div></div>';
+
+  // Joueurs dans la zone
+  const zonePlayersBlock=myZone&&sameZone.length>0
+    ?'<div class="zone-players">'
+      +'<div class="zone-players-title">👤 Dans cette zone</div>'
+      +sameZone.map(([id,p])=>'<div class="zone-player-row">'
+        +sImg(p.classe,p.genre,p.xp||0,36)
+        +'<div style="flex:1"><div style="font-weight:700;font-size:13px">'+p.name+'</div>'
+        +'<div style="font-size:10px;color:var(--gray)">'+playerTitle(p)+'</div></div>'
+        +'<button style="background:var(--panel);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:11px;padding:4px 8px;cursor:pointer" onclick="onPlayer(\''+id+'\')">→</button>'
+        +'</div>').join('')
+      +'</div>'
+    :'';
+
+  return'<div class="hero-screen">'+zoneBlock+spriteBlock+infoBlock+actions+zonePlayersBlock+'</div>'
+}
+
+function mkActionBtn(icon,label,sub,available,cd,onclick){
+  const dis=!available||cd;
+  return'<div class="action-btn'+(available&&!cd?' available':(available?' available':' disabled'))+(available&&!cd?' highlight':'')+'"'
+    +(!dis?' onclick="'+onclick+'"':'')+'>'
+    +'<div class="action-icon">'+icon+'</div>'
+    +'<div class="action-label">'+label+'</div>'
+    +'<div class="action-sub">'+(cd?'⏳ '+cd:sub)+'</div></div>'
+}
+
+window.showActionSheet=function(){
+  const myZone=ME?.zone;
+  const sameZone=myZone?Object.entries(DATA.players||{}).filter(([id,p])=>id!==myId&&p.zone===myZone):[];
+  const canFouille=myZone&&cdOk(myZone+'_fouille');
+  showModal('<div style="text-align:center;margin-bottom:12px">'
+    +sImg(ME.classe,ME.genre,ME?.xp||0,80,'hero-sprite s'+stadeOf(ME?.xp||0))
+    +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gold);margin-top:8px">'+ME.name+'</div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-top:2px">'+playerTitle(ME)+' · '+(myZone&&ZONES[myZone]?'📍 '+ZONES[myZone].name:'Aucune zone')+'</div></div>'
+    +'<div style="display:grid;gap:8px">'
+    +'<button class="btn btn-blue" '+(myZone&&canFouille?'onclick="doFouille()"':(myZone?'disabled':' onclick="showZonePicker()"'))+'>'
+    +'🔍 Fouiller'+(myZone?'':(myZone?'':' (choisir une zone)'))+'</button>'
+    +(sameZone.length?'<button class="btn btn-red" onclick="closeModal();showTargets(\'vol\')">🤏 Voler quelqu\'un</button>'
+      +'<button class="btn btn-blue" onclick="closeModal();showTargets(\'espionnage\')">👁️ Espionner</button>'
+      +'<button class="btn btn-gold" onclick="closeModal();showTargets(\'parole\')">💬 Parler</button>'
+      +'<button class="btn btn-green" onclick="closeModal();showTargets(\'negociation\')">🤝 Négocier</button>'
+      :'<div style="font-size:12px;color:var(--gray);text-align:center;padding:8px">Aucun joueur dans cette zone.<br>Déplace-toi pour interagir !</div>')
+    +'<button class="btn btn-gray" onclick="closeModal()">Fermer</button></div>')
+};
+
+window.showZonePicker=function(){
+  const zones=DATA.config?.activeZones||Object.keys(ZONES);
+  showModal('<div class="ct">📍 Choisir une zone</div>'
+    +'<div class="zg">'+zones.map(zid=>{
+      const z=ZONES[zid],here=Object.values(DATA.players||{}).filter(p=>p.zone===zid),isMine=ME?.zone===zid;
+      return'<div class="zc'+(isMine?' mine':'')+'" onclick="moveZone(\''+zid+'\')">'
+        +'<div style="font-size:24px">'+z.icon+'</div>'
+        +'<div style="font-size:11px;font-weight:700">'+z.name+'</div>'
+        +(here.length?'<div class="zc-count">'+here.length+' 👤</div>':'')
+        +'</div>';}).join('')+'</div>'
+    +'<button class="btn btn-gray" style="margin-top:12px" onclick="closeModal()">Annuler</button>')
+};
+window.moveZone=async function(zid){closeModal();await fbUpd('/players/'+myId,{zone:zid});addEv('info',ME.name+' se déplace vers '+ZONES[zid].name,myId);notify('📍 '+ZONES[zid].name,'var(--blue)');renderTab()};
+
+window.showTargets=function(action){
+  const myZone=ME?.zone;
+  const targets=myZone?Object.entries(DATA.players||{}).filter(([id,p])=>id!==myId&&p.zone===myZone):[];
+  if(!targets.length){notify('Personne dans cette zone !','var(--gray)');return}
+  const labels={vol:'🤏 Voler',espionnage:'👁️ Espionner',parole:'💬 Parler à',negociation:'🤝 Négocier avec'};
+  showModal('<div class="ct">'+labels[action]+' qui ?</div>'
+    +targets.map(([id,p])=>{
+      const onCd=!cdOk(id);
+      return'<div class="pr" style="margin-bottom:8px;cursor:'+(onCd?'not-allowed':'pointer')+'"'
+        +(!onCd?' onclick="execAction(\''+action+'\',\''+id+'\')"':'')+'>'
+        +sImg(p.classe,p.genre,p.xp||0,52)
+        +'<div class="pr-info"><div class="pr-name">'+p.name+'</div>'
+        +'<div class="pr-sub">'+playerTitle(p)+'</div></div>'
+        +(onCd?'<span class="badge badge-cd">⏳ '+fmtMs(cdLeft(id))+'</span>':'<span style="color:var(--gold);font-size:18px">→</span>')
+        +'</div>';}).join('')
+    +'<button class="btn btn-gray" onclick="closeModal()">Annuler</button>')
+};
+
+window.execAction=async function(action,tid){
+  closeModal();
+  if(action==='vol')await stealPlayer(tid);
+  else if(action==='espionnage')await spyPlayer(tid);
+  else if(action==='parole')await talkPlayer(tid);
+  else if(action==='negociation')await negotiatePlayer(tid);
+};
+
+window.doFouille=async function(){closeModal();await searchZone(ME?.zone)};
+
+// ══ TAB CARTE ══
 function rCarte(){
   const zones=DATA.config?.activeZones||Object.keys(ZONES);
   const cards=zones.map(zid=>{
     const z=ZONES[zid];
     const here=Object.values(DATA.players||{}).filter(p=>p.zone===zid);
-    const isObj=isAdmin()&&DATA.game.objectZone===zid;
-    const isMine=ME?.zone===zid;
-    return'<div class="zc'+(isObj?' obj':'')+(isMine?' mine':'')+'" onclick="onZone(\''+zid+'\')">'
+    const isObj=isAdmin()&&DATA.game.objectZone===zid,isMine=ME?.zone===zid;
+    return'<div class="zc'+(isObj?' obj':'')+(isMine?' mine':'')+'" onclick="onZoneCarte(\''+zid+'\')">'
       +'<div style="font-size:28px">'+z.icon+'</div>'
       +'<div style="font-size:11px;font-weight:700;margin:4px 0">'+z.name+'</div>'
-      +(here.length?'<div style="font-size:10px;color:var(--gray)">'+here.map(p=>p.name).join(', ')+'</div>':'')
-      +(isMine?'<div style="font-size:9px;color:var(--blue);margin-top:2px">📍 Vous êtes ici</div>':'')
-      +'</div>'
-  }).join('');
-  return'<div class="card"><div class="ct">🗺️ Zones</div><div class="zg">'+cards+'</div></div>'
+      +(isMine?'<div style="font-size:9px;color:var(--blue)">📍 Vous</div>':'')
+      +(here.length?'<div class="zc-count">'+here.map(p=>p.name).join(', ')+'</div>':'')
+      +(isObj?'<div style="font-size:9px;color:var(--gold)">🗝️ Objet ici</div>':'')
+      +'</div>';}).join('');
+  return'<div class="carte-wrap"><div class="card"><div class="ct">🗺️ Zones</div><div class="zg">'+cards+'</div></div></div>'
 }
 
-window.onZone=function(zid){
-  const z=ZONES[zid];
-  showModal('<div style="text-align:center;margin-bottom:12px">'
+window.onZoneCarte=function(zid){
+  const z=ZONES[zid],here=Object.values(DATA.players||{}).filter(p=>p.zone===zid),isMine=ME?.zone===zid;
+  const canFouille=isMine&&cdOk(zid+'_fouille');
+  showModal('<div style="text-align:center;margin-bottom:14px">'
     +'<div style="font-size:36px">'+z.icon+'</div>'
     +'<div style="font-family:\'Press Start 2P\';font-size:10px;color:var(--gold);margin-top:8px">'+z.name+'</div>'
+    +(here.length?'<div style="font-size:12px;color:var(--gray);margin-top:6px">'+here.length+' joueur'+(here.length>1?'s')+' présent'+(here.length>1?'s':'')+' : '+here.map(p=>p.name).join(', ')+'</div>':'')
     +'</div>'
-    +'<button class="btn btn-blue" style="margin-bottom:8px" onclick="moveZone(\''+zid+'\')">📍 Se déplacer ici</button>'
-    +'<button class="btn btn-green" style="margin-bottom:8px" onclick="doSearch(\''+zid+'\')">🔍 Fouiller</button>'
-    +(ME?.hasObject?'<button class="btn btn-gray" style="margin-bottom:8px" onclick="doHide(\''+zid+'\')">🙈 Cacher l\'objet</button>':'')
+    +(isMine?'<button class="btn btn-green" style="margin-bottom:8px" onclick="doFouille()"'+(canFouille?'':' disabled')+'>🔍 Fouiller</button>'
+      +(ME?.hasObject?'<button class="btn btn-gray" style="margin-bottom:8px" onclick="closeModal();doHideObj(\''+zid+'\')">🙈 Cacher l\'objet</button>':'')
+      :'<button class="btn btn-blue" style="margin-bottom:8px" onclick="moveZone(\''+zid+'\')">📍 Se déplacer ici</button>')
     +'<button class="btn btn-gray" onclick="closeModal()">Fermer</button>')
 };
-window.moveZone=async function(zid){closeModal();await fbUpd('/players/'+myId,{zone:zid});notify('📍 '+ZONES[zid].name,'var(--blue)')};
-window.doSearch=function(zid){closeModal();notify('🚧 Fouille — bientôt disponible','var(--orange)')};
-window.doHide=function(zid){closeModal();notify('🚧 Cacher — bientôt disponible','var(--orange)')};
+window.doHideObj=async function(zid){
+  await fbUpd('/game',{objectHolder:null,objectZone:zid});
+  await fbUpd('/players/'+myId,{hasObject:false});
+  addEv('info',ME.name+' cache discrètement l\'objet...',myId);notify('Objet caché !','var(--green)')
+};
 
-// ══ TAB : ACTIONS ══
-function rActions(){
-  const xp=ME?.xp||0,s=stadeOf(xp);
-  const nextXp=s<3?XP_STADE[s+1]:null;
-  const pct=nextXp?Math.round((xp-XP_STADE[s])/(nextXp-XP_STADE[s])*100):100;
-  const timerBlock=DATA.game.timerEnd
-    ?'<div class="timer-bar"><div><div style="font-size:11px;color:var(--gray)">Temps restant</div>'
-      +'<div class="tv'+(DATA.game.timerEnd-Date.now()<120000?' warn':'')+'" id="tv">'+timerStr()+'</div></div>'
-      +(ME?.hasObject?'<div style="font-size:24px">🗝️</div>':'<div style="font-size:11px;color:var(--gray)">Objet libre</div>')
-      +'</div>'
-    :'<div class="panel" style="text-align:center;color:var(--gray)">En attente du démarrage...</div>';
-  const skillRows=Object.entries(SKILLS).map(([k,sk])=>{
-    const lvl=ME?.skills?.[k]||0;
-    return'<div class="sk-row"><span style="font-size:13px;flex:1">'+sk.icon+' '+sk.label+'</span>'
-      +'<span class="sk-stars">'+'⭐'.repeat(lvl)+'☆'.repeat(3-lvl)+'</span></div>'
-  }).join('');
-  return timerBlock
-    +'<div class="card"><div class="ct">📊 Compétences</div>'
-    +skillRows
-    +'<div style="margin-top:10px"><div style="font-size:11px;color:var(--gray);margin-bottom:4px">XP Global — '+STADES[s]+(nextXp?' → '+STADES[s+1]:'  MAX')+'</div>'
-    +'<div class="xp-bar"><div class="xp-fill" style="width:'+pct+'%;background:var(--purple)"></div></div>'
-    +'<div style="font-size:10px;color:var(--gray);text-align:right;margin-top:2px">'+xp+(nextXp?' / '+nextXp+' XP':'  ✨ Max')+'</div></div></div>'
-    +'<div class="card"><div class="ct">ℹ️ Actions disponibles</div>'
-    +'<div style="font-size:12px;color:var(--gray);line-height:1.7">📍 Tape une <b style="color:var(--white)">zone</b> sur la carte pour fouiller.<br>👤 Tape un <b style="color:var(--white)">joueur</b> pour interagir.</div></div>'
-    +(isAdmin()?adminBlock():'')
-}
-
-function adminBlock(){
-  return'<div class="card" style="border-color:var(--purple)"><div class="ct">⚙️ Admin</div>'
-    +(DATA.game.status==='playing'
-      ?'<button class="btn btn-red" onclick="adminEnd()">⏹ Terminer la partie</button>'
-        +(DATA.game.objectHolder?'<div style="margin-top:8px;font-size:12px;color:var(--gray)">Objet chez : '+(DATA.players[DATA.game.objectHolder]?.name||'?')+'</div>'
-         :DATA.game.objectZone?'<div style="margin-top:8px;font-size:12px;color:var(--gray)">Objet en : '+ZONES[DATA.game.objectZone]?.name+'</div>':'')
-      :'<label style="font-size:12px;color:var(--gray)">Durée (min)</label>'
-        +'<input id="adm-t" type="number" class="inp" value="'+(DATA.config?.timerMinutes||30)+'" min="1" max="120" style="margin:8px 0">'
-        +'<button class="btn btn-green" onclick="adminStart()">▶ Lancer la partie</button>')
-    +'</div>'
-}
-window.adminEnd=async function(){await fbUpd('/game',{timerEnd:Date.now()-1})};
-
-// ══ TAB : JOUEURS ══
+// ══ TAB JOUEURS ══
 function rJoueurs(){
   const ps=Object.entries(DATA.players||{});
-  if(!ps.length)return'<div class="panel" style="text-align:center;color:var(--gray)">Aucun joueur connecté</div>';
-  return'<div class="card"><div class="ct">👥 Joueurs</div>'
-    +ps.map(([id,p])=>'<div class="pr" onclick="onPlayer(\''+id+'\')">'
-      +sImg(p.classe,p.genre,p.xp||0,72)
-      +'<div class="pr-info">'
-      +'<div class="pr-name">'+p.name+(id===myId?' <span style="font-size:11px;color:var(--gray)">(moi)</span>':'')+'</div>'
-      +'<div class="pr-sub">'+playerTitle(p)+' · '+p.classe+'</div>'
-      +(p.zone&&ZONES[p.zone]?'<div style="font-size:10px;color:var(--blue);margin-top:2px">📍 '+ZONES[p.zone].name+'</div>':'')
-      +'</div>'
-      +'<div class="pr-right">'
-      +(p.hasObject?'<span class="badge badge-obj">🗝️</span>':'')
-      +(p.isAdmin?'<span class="badge badge-admin">👑</span>':'')
-      +(isAdmin()&&id!==myId?'<span style="font-size:12px;color:var(--gold)">'+(p.gold||0)+' 🪙</span>':'')
-      +'</div></div>'
-    ).join('')+'</div>'
+  if(!ps.length)return'<div class="panel" style="margin:12px;text-align:center;color:var(--gray)">Aucun joueur</div>';
+  const myZone=ME?.zone;
+  return'<div style="padding:12px"><div class="card"><div class="ct">👥 Joueurs ('+ps.length+')</div>'
+    +ps.map(([id,p])=>{
+      const sameZ=myZone&&p.zone===myZone&&id!==myId;
+      const onCd=!cdOk(id);
+      return'<div class="pr" onclick="onPlayer(\''+id+'\')" style="border-color:'+(sameZ?'var(--blue)':'var(--border)')+'">'
+        +sImg(p.classe,p.genre,p.xp||0,64)
+        +'<div class="pr-info"><div class="pr-name">'+p.name+(id===myId?' <span style="color:var(--gray);font-size:10px">(moi)</span>':'')+'</div>'
+        +'<div class="pr-sub">'+playerTitle(p)+' · '+p.classe+'</div>'
+        +(p.zone&&ZONES[p.zone]?'<div style="font-size:10px;color:'+(sameZ?'var(--blue)':'var(--gray)')+';margin-top:2px">'+(sameZ?'📍 Même zone — ':'')+ZONES[p.zone].name+'</div>':'')
+        +'</div><div class="pr-right">'
+        +(p.hasObject?'<span class="badge badge-obj">🗝️</span>':'')
+        +(p.isAdmin?'<span class="badge badge-admin">👑</span>':'')
+        +(isAdmin()&&id!==myId?'<span style="font-size:12px;color:var(--gold)">'+(p.gold||0)+' 🪙</span>':'')
+        +(sameZ&&onCd?'<span class="badge badge-cd">⏳</span>':'')
+        +'</div></div>'
+    }).join('')+'</div>'
+    +(isAdmin()?'<div class="card" style="border-color:var(--purple)"><div class="ct">👑 MJ — Message</div>'
+      +'<textarea id="mj-msg" class="inp" placeholder="Message narratif pour tous les joueurs..." style="margin-bottom:8px"></textarea>'
+      +'<button class="btn btn-purple" onclick="sendMJMsg()">📜 Envoyer au journal</button></div>':'')
+    +'</div>'
 }
 
 window.onPlayer=function(tid){
   if(tid===myId)return;
   const p=DATA.players[tid];if(!p)return;
+  const myZone=ME?.zone,sameZone=myZone&&p.zone===myZone,onCd=!cdOk(tid);
   showModal('<div style="text-align:center;margin-bottom:16px">'
-    +sImg(p.classe,p.genre,p.xp||0,100,'display:block;margin:0 auto')
+    +sImg(p.classe,p.genre,p.xp||0,96,'hero-sprite s'+stadeOf(p.xp||0))
     +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gold);margin-top:10px">'+p.name+'</div>'
     +'<div style="font-size:12px;color:var(--gray);margin-top:4px">'+playerTitle(p)+' — '+p.classe+'</div>'
-    +(p.zone&&ZONES[p.zone]?'<div style="font-size:11px;color:var(--blue);margin-top:4px">📍 '+ZONES[p.zone].name+'</div>':'')
+    +(p.zone&&ZONES[p.zone]?'<div style="font-size:11px;color:'+(sameZone?'var(--blue)':'var(--gray)')+';margin-top:4px">📍 '+ZONES[p.zone].name+(sameZone?' (même zone !)':'')+'</div>':'')
     +'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
-    +'<button class="btn btn-red btn-sm" onclick="doSteal(\''+tid+'\')">🤏 Voler</button>'
-    +'<button class="btn btn-blue btn-sm" onclick="doSpy(\''+tid+'\')">👁️ Espionner</button>'
-    +'<button class="btn btn-gold btn-sm" onclick="doTalk(\''+tid+'\')">💬 Parler</button>'
-    +'<button class="btn btn-green btn-sm" onclick="doNegotiate(\''+tid+'\')">🤝 Négocier</button>'
-    +'</div>'
+    +(sameZone&&!onCd?'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+      +'<button class="btn btn-red btn-sm" onclick="execAction(\'vol\',\''+tid+'\')">🤏 Voler</button>'
+      +'<button class="btn btn-blue btn-sm" onclick="execAction(\'espionnage\',\''+tid+'\')">👁️ Espionner</button>'
+      +'<button class="btn btn-gold btn-sm" onclick="execAction(\'parole\',\''+tid+'\')">💬 Parler</button>'
+      +'<button class="btn btn-green btn-sm" onclick="execAction(\'negociation\',\''+tid+'\')">🤝 Négocier</button></div>'
+      :sameZone&&onCd?'<div style="text-align:center;color:var(--orange);padding:8px;font-size:12px">⏳ Cooldown : '+fmtMs(cdLeft(tid))+'</div>'
+      :'<div style="text-align:center;color:var(--gray);padding:8px;font-size:12px">Tu dois être dans la même zone<br>pour interagir avec ce joueur.</div>')
     +'<button class="btn btn-gray" onclick="closeModal()">Fermer</button>')
 };
-window.doSteal=function(t){closeModal();notify('🚧 Vol — bientôt disponible','var(--orange)')};
-window.doSpy=function(t){closeModal();notify('🚧 Espionnage — bientôt disponible','var(--orange)')};
-window.doTalk=function(t){closeModal();notify('🚧 Parole — bientôt disponible','var(--orange)')};
-window.doNegotiate=function(t){closeModal();notify('🚧 Négo — bientôt disponible','var(--orange)')};
 
-// ══ TAB : JOURNAL ══
+window.sendMJMsg=function(){
+  const msg=document.getElementById('mj-msg')?.value?.trim();
+  if(!msg||msg.length<2){notify('Message vide','var(--red)');return}
+  addEv('mj','👑 MJ : '+msg,myId);
+  document.getElementById('mj-msg').value='';
+  notify('Message envoyé','var(--purple)');renderTab()
+};
+
+// ══ TAB JOURNAL ══
 function rJournal(){
-  const evs=Object.values(DATA.events||{}).sort((a,b)=>b.ts-a.ts).slice(0,60);
-  if(!evs.length)return'<div class="panel" style="text-align:center;color:var(--gray)">Aucun événement pour l\'instant</div>';
-  return'<div class="card"><div class="ct">📜 Journal</div>'
-    +evs.map(e=>'<div class="ev '+e.type+'"><div>'+e.text+'</div>'
-      +'<div style="font-size:10px;color:var(--gray)">'+fmtTs(e.ts)+'</div></div>'
-    ).join('')+'</div>'
+  const evs=Object.values(DATA.events||{}).sort((a,b)=>b.ts-a.ts).slice(0,80);
+  if(!evs.length)return'<div class="panel" style="margin:12px;text-align:center;color:var(--gray)">Aucun événement</div>';
+  return'<div style="padding:12px"><div class="card"><div class="ct">📜 Journal</div>'
+    +evs.map(e=>'<div class="ev '+e.type+'"><div>'+e.text+'</div><div class="ev-time">'+fmtTs(e.ts)+'</div></div>').join('')+'</div>'
+    +(isAdmin()?'<div class="card" style="border-color:var(--purple)"><div class="ct">👑 MJ — Narration</div>'
+      +'<textarea id="mj-msg2" class="inp" placeholder="Décris un événement, donne une ambiance..."></textarea>'
+      +'<button class="btn btn-purple" onclick="sendMJMsg2()">📜 Publier</button></div>':'')
+    +'</div>'
 }
+window.sendMJMsg2=function(){const msg=document.getElementById('mj-msg2')?.value?.trim();if(!msg||msg.length<2){notify('Message vide','var(--red)');return}addEv('mj','👑 MJ : '+msg,myId);document.getElementById('mj-msg2').value='';notify('Message publié','var(--purple)');renderTab()};
 
-// ══ TAB : INVENTAIRE ══
+// ══ TAB INVENTAIRE ══
 function rInventaire(){
-  if(!myPin){
-    return'<div style="padding:20px"><div class="ct" style="text-align:center;margin-bottom:16px">🔒 PIN Inventaire</div>'
-      +'<input id="pin-i" type="password" inputmode="numeric" class="inp pin-inp" placeholder="••••" maxlength="6">'
-      +'<button class="btn btn-gold" onclick="pinSubmit()">Déverrouiller</button></div>'
-  }
+  if(!myPin)return'<div style="padding:20px"><div class="ct" style="text-align:center;margin-bottom:16px">🔒 PIN Inventaire</div>'
+    +'<input id="pin-i" type="password" inputmode="numeric" class="inp pin-inp" placeholder="••••" maxlength="6">'
+    +'<button class="btn btn-gold" onclick="pinSubmit()">Déverrouiller</button></div>';
+  const xp=ME?.xp||0,s=stadeOf(xp);
+  const skillRows=Object.entries(SKILLS).map(([k,sk])=>{
+    const lvl=ME?.skills?.[k]||0,sxp=ME?.skillXp?.[k]||0;
+    const nextS=lvl<3?XP_SKILL[lvl]:null,spct=nextS?Math.round(sxp/nextS*100):100;
+    return'<div class="sk-row"><span style="font-size:13px;flex:1">'+sk.icon+' '+sk.label+'</span>'
+      +'<span class="sk-stars">'+'⭐'.repeat(lvl)+'☆'.repeat(3-lvl)+'</span>'
+      +'<div style="width:60px;background:var(--dim);height:5px;border-radius:3px;overflow:hidden">'
+      +'<div style="width:'+spct+'%;height:100%;background:var(--blue)"></div></div></div>'
+  }).join('');
   return'<div style="padding:12px">'
     +'<div class="card"><div class="ct">💰 Or</div>'
     +'<div style="font-family:\'Press Start 2P\';font-size:28px;color:var(--gold);text-align:center;padding:8px 0">'+(ME?.gold||0)+' 🪙</div></div>'
-    +(ME?.hasObject?'<div class="card" style="border-color:var(--gold);text-align:center"><div style="font-size:40px;margin:8px 0">🗝️</div>'
+    +(ME?.hasObject?'<div class="card" style="border-color:var(--gold);text-align:center">'
+      +'<div style="font-size:40px;margin:8px 0">🗝️</div>'
       +'<div style="font-weight:800;margin-bottom:8px">Vous possédez L\'OBJET</div>'
-      +'<button class="btn btn-gray btn-sm" onclick="showHideMenu()">Cacher l\'objet...</button></div>':'')
-    +'<button class="btn btn-gray btn-sm" onclick="lockInv()" style="display:block;margin:8px auto">🔒 Verrouiller</button></div>'
+      +'<button class="btn btn-gray btn-sm" onclick="showZonePicker()">Chacher dans une zone...</button></div>':'')
+    +'<div class="card"><div class="ct">📊 Compétences</div>'+skillRows+'</div>'
+    +'<button class="btn btn-gray btn-sm" onclick="lockInv()" style="display:block;margin:0 auto">🔒 Verrouiller</button></div>'
 }
-window.pinSubmit=function(){
-  const v=document.getElementById('pin-i')?.value;
-  if(!v||v.length<4){notify('PIN trop court','var(--red)');return}
-  if(myPin&&v!==myPin){notify('PIN incorrect','var(--red)');return}
-  if(!myPin){savePin(v);notify('PIN sauvegardé !','var(--green)')}
-  renderTab()
-};
+window.pinSubmit=function(){const v=document.getElementById('pin-i')?.value;if(!v||v.length<4){notify('PIN trop court','var(--red)');return}if(myPin&&v!==myPin){notify('PIN incorrect','var(--red)');return}if(!myPin){savePin(v);notify('PIN sauvegardé !','var(--green)')}renderTab()};
 window.lockInv=function(){myPin=null;renderTab()};
-window.showHideMenu=function(){
-  const zones=DATA.config?.activeZones||Object.keys(ZONES);
-  showModal('<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gold);text-align:center;margin-bottom:12px">🙈 Où cacher l\'objet ?</div>'
-    +zones.map(z=>'<button class="btn btn-gray" style="margin-bottom:6px" onclick="hideObj(\''+z+'\')">'+ZONES[z].icon+' '+ZONES[z].name+'</button>').join('')
-    +'<button class="btn btn-gray" style="margin-top:4px" onclick="closeModal()">Annuler</button>')
-};
-window.hideObj=async function(zid){
-  closeModal();
-  await fbUpd('/game',{objectHolder:null,objectZone:zid});
-  await fbUpd('/players/'+myId,{hasObject:false});
-  addEv('info',ME.name+' cache L\'OBJET...',myId);
-  notify('Objet caché !','var(--green)')
-};
 
-// ══ ÉCRAN DE FIN ══
+// ══ ADMIN BLOCK (onglet héros si admin) ══
+// (intégré dans le Journal/Joueurs uniquement, pas besoin d'un bloc séparé)
+
+// ══ MOTEUR DE DÉS ══
+function rollDice(action,skillLvl){
+  const pity=ME?.pityCounts?.[action]||0;
+  const raw=Math.floor(Math.random()*20)+1;
+  if(pity>=6)return{raw,modified:20,result:'critical',xp:3};
+  const bonus=skillLvl+(pity>=4?7:pity>=2?3:0);
+  const mod=Math.min(20,Math.max(1,raw+bonus));
+  const result=mod<=5?'critical_fail':mod<=10?'fail':mod<=15?'success':mod<=19?'strong_success':'critical';
+  return{raw,modified:mod,result,xp:result.includes('fail')?1:3}
+}
+function showDice(roll,text){
+  const col=roll.result.includes('fail')?'var(--red)':roll.result==='critical'?'var(--gold)':'var(--green)';
+  showModal('<div class="dice-result"><div style="font-size:12px;color:var(--gray)">🎲 1d20</div>'
+    +'<div class="dice-num" style="color:'+col+'">'+roll.modified+'</div>'
+    +(roll.raw!==roll.modified?'<div style="font-size:10px;color:var(--gray)">(brut : '+roll.raw+')</div>':'')
+    +'<div class="dice-label '+roll.result+'" style="color:'+col+'">'+RESULT_LABELS[roll.result]+'</div>'
+    +'<div class="dice-text">'+text+'</div>'
+    +'<div class="dice-xp">+'+roll.xp+' XP</div></div>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal();renderTab()">OK</button>')
+}
+
+// ══ XP & COMPÉTENCES ══
+async function applyXP(skillKey,xpAmt){
+  // XP global → sprite stade
+  const curXp=ME?.xp||0,newXp=curXp+xpAmt;
+  const oldS=stadeOf(curXp),newS=stadeOf(newXp);
+  // XP compétence → niveau compétence
+  const curSkillLvl=ME?.skills?.[skillKey]||0;
+  const curSkillXp=ME?.skillXp?.[skillKey]||0;
+  let newSkillXp=curSkillXp+xpAmt,newSkillLvl=curSkillLvl;
+  if(newSkillLvl<3&&newSkillXp>=XP_SKILL[newSkillLvl]){newSkillXp-=XP_SKILL[newSkillLvl];newSkillLvl++;notify('⭐ '+SKILLS[skillKey].label+' niveau '+newSkillLvl+' !','var(--gold)')}
+  if(newS>oldS)notify('✨ '+STADES[newS]+' ! '+playerTitle({...ME,xp:newXp}),'var(--purple)');
+  await fbUpd('/players/'+myId,{xp:newXp,['skills/'+skillKey]:newSkillLvl,['skillXp/'+skillKey]:newSkillXp})
+}
+async function setPity(action,ok){await fbSet('/players/'+myId+'/pityCounts/'+action,ok?0:(ME?.pityCounts?.[action]||0)+1)}
+async function setCd(tid){await fbSet('/players/'+myId+'/cooldowns/'+tid,Date.now())}
+
+// ══ ACTIONS DE JEU ══
+async function searchZone(zid){
+  if(!zid){notify('Choisis d\'abord une zone sur la carte','var(--gray)');return}
+  if(!cdOk(zid+'_fouille')){notify('⏳ '+fmtMs(cdLeft(zid+'_fouille')),'var(--orange)');renderTab();return}
+  const sl=ME?.skills?.fouille||0;
+  const roll=rollDice('fouille',sl);
+  await fbSet('/players/'+myId+'/cooldowns/'+zid+'_fouille',Date.now());
+  await applyXP('fouille',roll.xp);await setPity('fouille',!roll.result.includes('fail'));
+  await fbUpd('/players/'+myId,{zone:zid});
+  let txt='',gold=0;
+  if(roll.result.includes('fail')){
+    txt=roll.result==='critical_fail'?'Vous faites du bruit et attirez l\'attention !':'Rien d\'intéressant ici.';
+    addEv('fail',ME.name+' fouille '+ZONES[zid].name+' sans succès',myId);
+  } else {
+    const mult=sl>=2?2:1;
+    gold=Math.floor((5+Math.random()*25)*mult*(roll.result==='critical'?2:roll.result==='strong_success'?1.5:1));
+    if(DATA.game.objectZone===zid&&!DATA.game.objectHolder){
+      if(roll.result==='strong_success'||roll.result==='critical'){
+        gold+=50;txt='🗝️ Vous trouvez L\'OBJET et '+gold+' 🪙 !';
+        await fbUpd('/game',{objectHolder:myId,objectZone:null});
+        await fbUpd('/players/'+myId,{hasObject:true,gold:(ME.gold||0)+gold});
+        addEv('critical','🗝️ '+ME.name+' trouve L\'OBJET dans '+ZONES[zid].name+' !',myId);
+        showDice(roll,txt);return;
+      } else txt='Une présence mystérieuse... quelque chose est caché ici. +'+gold+' 🪙';
+    } else txt='+'+gold+' 🪙 trouvés.';
+    await fbUpd('/players/'+myId,{gold:(ME.gold||0)+gold});
+    addEv('success',ME.name+' fouille '+ZONES[zid].name,myId);
+  }
+  showDice(roll,txt)
+}
+
+async function stealPlayer(tid){
+  if(!cdOk(tid)){notify('⏳ '+fmtMs(cdLeft(tid)),'var(--orange)');return}
+  const sl=ME?.skills?.vol||0,tgt=DATA.players[tid];
+  const roll=rollDice('vol',sl);
+  await setCd(tid);await applyXP('vol',roll.xp);await setPity('vol',!roll.result.includes('fail'));
+  if(roll.result.includes('fail')){
+    const pen=roll.result==='critical_fail'?Math.floor((ME.gold||0)*0.1):0;
+    if(pen>0)await fbUpd('/players/'+myId,{gold:Math.max(0,(ME.gold||0)-pen)});
+    if(sl<3)addEv('fail',ME.name+' tente de voler '+tgt.name+' — Raté',myId);
+    showDice(roll,pen?'Pris en flagrant délit ! −'+pen+' 🪙':'Vol raté. Mieux vaut décamper.');
+  } else {
+    let stolen=0,txt='';
+    if(roll.result==='critical'&&tgt.hasObject){
+      txt='🗝️ Vous volez L\'OBJET à '+tgt.name+' !';
+      await fbUpd('/game',{objectHolder:myId});
+      await fbUpd('/players/'+myId,{hasObject:true});
+      await fbUpd('/players/'+tid,{hasObject:false});
+      addEv('critical',ME.name+' vole L\'OBJET à '+tgt.name+' !',myId);
+    } else {
+      stolen=Math.max(0,Math.min(tgt.gold||0,Math.floor(Math.random()*(tgt.gold||0)*0.3)+(sl>=2?20:0)));
+      if(roll.result!=='success')stolen=Math.floor(stolen*1.5);
+      txt='Vous volez '+stolen+' 🪙 à '+tgt.name+'.';
+      await fbUpd('/players/'+myId,{gold:(ME.gold||0)+stolen});
+      await fbUpd('/players/'+tid,{gold:Math.max(0,(tgt.gold||0)-stolen)});
+      if(sl<3)addEv('info',ME.name+' rôde autour de '+tgt.name,myId);
+    }
+    showDice(roll,txt)
+  }
+}
+
+async function spyPlayer(tid){
+  if(!cdOk(tid)){notify('⏳ '+fmtMs(cdLeft(tid)),'var(--orange)');return}
+  const sl=ME?.skills?.espionnage||0,tgt=DATA.players[tid];
+  const roll=rollDice('espionnage',sl);
+  await setCd(tid);await applyXP('espionnage',roll.xp);await setPity('espionnage',!roll.result.includes('fail'));
+  addEv('info',ME.name+' observe '+tgt.name,myId);
+  if(roll.result.includes('fail')){
+    const fz=Object.keys(ZONES)[Math.floor(Math.random()*10)];
+    showDice(roll,'Informations peu fiables...\nZone signalée : '+ZONES[fz].name+(sl>=1?' (peut-être)':' (non vérifié)'));return;
+  }
+  const lines=['Zone : '+(tgt.zone&&ZONES[tgt.zone]?ZONES[tgt.zone].name:'Inconnue')];
+  if(sl>=2||roll.result==='strong_success'||roll.result==='critical')lines.push('Or : '+( tgt.gold||0)+' 🪙');
+  else lines.push('Or : ~'+Math.round((tgt.gold||0)/20)*20+' 🪙 (approx.)');
+  if(sl>=3||roll.result==='critical')lines.push('Objet : '+(tgt.hasObject?'✅ EN SA POSSESSION':'❌ Non'));
+  showDice(roll,lines.join('\n'))
+}
+
+async function talkPlayer(tid){
+  if(!cdOk(tid)){notify('⏳ '+fmtMs(cdLeft(tid)),'var(--orange)');return}
+  const sl=ME?.skills?.parole||0,tgt=DATA.players[tid];
+  const roll=rollDice('parole',sl);
+  await setCd(tid);await applyXP('parole',roll.xp);await setPity('parole',!roll.result.includes('fail'));
+  addEv('info',ME.name+' parle avec '+tgt.name,myId);
+  if(roll.result.includes('fail')){showDice(roll,tgt.name+' refuse de vous parler.\n"Laisse-moi tranquille !"');return}
+  const opts=['Demander sa zone actuelle','Demander s\'il a l\'objet','Flatter pour obtenir une info'];
+  if(sl>=1)opts.push('Le menacer subtilement');if(sl>=3)opts.push('Détecter s\'il ment');
+  const shown=roll.result==='success'?opts.slice(0,2):opts;
+  const rel=roll.result==='critical'?'(très fiable)':roll.result==='strong_success'?'(fiable)':'(peut mentir)';
+  showDice(roll,tgt.name+' vous répond '+rel+'.\n\nOptions :\n'+shown.map(o=>'• '+o).join('\n'))
+}
+
+async function negotiatePlayer(tid){
+  if(!cdOk(tid)){notify('⏳ '+fmtMs(cdLeft(tid)),'var(--orange)');return}
+  const sl=ME?.skills?.parole||0,tgt=DATA.players[tid];
+  const roll=rollDice('negociation',sl);
+  await setCd(tid);await applyXP('parole',roll.xp);await setPity('negociation',!roll.result.includes('fail'));
+  addEv('info',ME.name+' négocie avec '+tgt.name,myId);
+  if(roll.result.includes('fail')){
+    if(roll.result==='critical_fail'&&sl<2){await fbUpd('/players/'+myId,{gold:Math.max(0,(ME.gold||0)-10)});notify('Arnaque ratée −10 🪙','var(--red)')}
+    showDice(roll,tgt.name+' refuse catégoriquement de négocier.');return;
+  }
+  showDice(roll,tgt.name+' accepte de négocier !\nÉchangez vos conditions en vrai.\nRésultat convenu entre vous.')
+}
+
+// ══ VICTOIRE ══
+async function checkVictory(){
+  if(DATA?.game?.status!=='playing')return;
+  if(!DATA.game.timerEnd||Date.now()<DATA.game.timerEnd)return;
+  if(DATA.game.objectHolder){
+    const w=DATA.players[DATA.game.objectHolder];
+    await fbUpd('/game',{status:'ended',winner:DATA.game.objectHolder,winnerMsg:'🏆 '+w.name+' remporte la quête avec l\'objet !'});
+    addEv('critical','🏆 '+w.name+' gagne la partie !',DATA.game.objectHolder);
+  } else {
+    let mx=-1,wid=null;
+    Object.entries(DATA.players||{}).forEach(([id,p])=>{if((p.gold||0)>mx){mx=p.gold;wid=id}});
+    if(wid){const w=DATA.players[wid];await fbUpd('/game',{status:'ended',winner:wid,winnerMsg:'💰 '+w.name+' gagne avec '+mx+' 🪙 !'});addEv('critical','💰 '+w.name+' gagne !',wid)}
+  }
+}
+
+// ══ ADMIN — TERMINER ══
+window.adminEnd=async function(){
+  showModal('<div style="text-align:center;margin-bottom:16px;font-weight:800">Terminer la partie ?</div>'
+    +'<button class="btn btn-red" style="margin-bottom:8px" onclick="doEnd()">Oui, calculer le gagnant</button>'
+    +'<button class="btn btn-gray" onclick="closeModal()">Annuler</button>');
+};
+window.doEnd=async function(){closeModal();await fbUpd('/game',{timerEnd:Date.now()-1});setTimeout(checkVictory,600)};
+
+// ══ FIN DE PARTIE ══
 function renderEnd(){
   const msg=DATA.game.winnerMsg||'Partie terminée';
   const ranks=Object.values(DATA.players||{}).sort((a,b)=>(b.gold||0)-(a.gold||0));
-  document.getElementById('app').innerHTML=
-    '<div style="padding:24px 20px;overflow-y:auto;height:100dvh">'
+  document.getElementById('app').innerHTML='<div style="padding:24px 20px;overflow-y:auto;height:100dvh">'
     +'<div class="flow-title" style="font-size:10px;text-align:center;margin-bottom:8px">PARTIE TERMINÉE</div>'
-    +'<div style="font-family:\'Press Start 2P\';font-size:11px;color:var(--gold);text-align:center;line-height:1.8;margin:16px 0">'+msg+'</div>'
-    +'<div class="card"><div class="ct">🏆 Classement</div>'
+    +'<div style="font-family:\'Press Start 2P\';font-size:11px;color:var(--gold);text-align:center;line-height:1.9;margin:16px 0">'+msg+'</div>'
+    +'<div class="card"><div class="ct">🏆 Classement Final</div>'
     +ranks.map((p,i)=>'<div class="pr">'
       +'<div style="font-size:22px;min-width:28px">'+(['🥇','🥈','🥉'][i]||'#'+(i+1))+'</div>'
-      +sImg(p.classe,p.genre,p.xp||0,64)
+      +sImg(p.classe,p.genre,p.xp||0,60,'hero-sprite s'+stadeOf(p.xp||0))
       +'<div class="pr-info"><div class="pr-name">'+p.name+'</div>'
       +'<div class="pr-sub">'+playerTitle(p)+' · '+STADES[stadeOf(p.xp||0)]+'</div></div>'
       +'<div style="font-weight:800;color:var(--gold);flex-shrink:0">'+(p.gold||0)+' 🪙</div></div>'
     ).join('')+'</div>'
-    +(isAdmin()?'<button class="btn btn-red" onclick="confirmReset()">🔄 Nouvelle partie</button>':'')
-    +'</div>'
+    +(isAdmin()?'<button class="btn btn-gold" onclick="confirmReset()">🔄 Nouvelle partie</button>':'')+'</div>'
 }
-
-window.confirmReset=function(){
-  showModal('<div style="text-align:center;margin-bottom:16px;font-weight:800">Réinitialiser la partie ?</div>'
-    +'<button class="btn btn-red" style="margin-bottom:8px" onclick="doReset()">Oui, réinitialiser</button>'
-    +'<button class="btn btn-gray" onclick="closeModal()">Annuler</button>')
-};
+window.confirmReset=function(){showModal('<div style="text-align:center;margin-bottom:16px;font-weight:800">Réinitialiser la partie ?<br><span style="font-size:12px;font-weight:400;color:var(--gray)">Les personnages sont conservés, remis à zéro.</span></div>'
+  +'<button class="btn btn-red" style="margin-bottom:8px" onclick="doReset()">Oui, recommencer</button>'
+  +'<button class="btn btn-gray" onclick="closeModal()">Annuler</button>')};
 window.doReset=async function(){
-  closeModal();
-  const code=genCode();
+  closeModal();const code=genCode();
   const kept=Object.fromEntries(Object.entries(DATA.players||{}).map(([id,p])=>
-    [id,{...p,gold:0,hasObject:false,xp:0,skills:{fouille:0,vol:0,espionnage:0,parole:0},cooldowns:{},zone:null}]
-  ));
+    [id,{...p,gold:0,hasObject:false,xp:0,skills:{fouille:0,vol:0,espionnage:0,parole:0},skillXp:{fouille:0,vol:0,espionnage:0,parole:0},
+      pityCounts:{fouille:0,vol:0,espionnage:0,parole:0,negociation:0},cooldowns:{},zone:null}]));
   await DB.ref('/').set({...DEF,config:{...DEF.config,timerMinutes:DATA.config?.timerMinutes||30,gameCode:code,gameId:Date.now()},players:kept});
   notify('Nouvelle partie — Code : '+code,'var(--green)')
 };
 
+// ══ ADMIN ACTIONS (dans les onglets) ══
+window.adminStart=async function(){
+  const inp=document.getElementById('tl')||document.getElementById('adm-t');
+  const t=parseInt(inp?.value||30);
+  const zz=DATA.config?.activeZones||Object.keys(ZONES);
+  const rz=zz[Math.floor(Math.random()*zz.length)];
+  await fbUpd('/config',{timerMinutes:t});
+  await fbUpd('/game',{status:'playing',objectZone:rz,objectHolder:null,timerEnd:Date.now()+t*60000,startedAt:Date.now()});
+  addEv('mj','⚔️ La quête commence ! Durée : '+t+' min.',null);notify('Partie lancée !','var(--green)')
+};
+
 // ══ MODAL ══
-function showModal(html){
-  closeModal();
-  const bd=document.createElement('div');bd.className='mb';
-  bd.innerHTML='<div class="mo">'+html+'</div>';
-  bd.addEventListener('click',e=>{if(e.target===bd)closeModal()});
-  document.body.appendChild(bd)
-}
+function showModal(html){closeModal();const bd=document.createElement('div');bd.className='mb';bd.innerHTML='<div class="mo">'+html+'</div>';bd.addEventListener('click',e=>{if(e.target===bd)closeModal()});document.body.appendChild(bd)}
 function closeModal(){document.querySelector('.mb')?.remove()}
 window.closeModal=closeModal;
 
@@ -797,12 +965,9 @@ window.closeModal=closeModal;
 function startTimer(){
   clearInterval(timerIv);
   timerIv=setInterval(()=>{
-    const el=document.getElementById('tv');
-    if(el){
-      el.textContent=timerStr();
-      const r=DATA?.game?.timerEnd?DATA.game.timerEnd-Date.now():Infinity;
-      el.classList.toggle('warn',r<120000)
-    }
+    const el=document.getElementById('tv');if(el){const r=DATA?.game?.timerEnd?DATA.game.timerEnd-Date.now():Infinity;el.textContent=timerStr();el.classList.toggle('warn',r<120000)}
+    const ghdr=document.querySelector('.ghdr-timer');if(ghdr){const r=DATA?.game?.timerEnd?DATA.game.timerEnd-Date.now():Infinity;ghdr.textContent=timerStr();ghdr.classList.toggle('warn',r<120000)}
+    if(isAdmin()&&DATA?.game?.timerEnd&&Date.now()>=DATA.game.timerEnd)checkVictory()
   },1000)
 }
 
