@@ -235,9 +235,9 @@ const TITLES={
   Nain:['Mineur','Forgeron','Maître Mineur','Roi des Nains']
 };
 const SKILLS={fouille:{label:'Fouille',icon:'🔍'},vol:{label:'Vol',icon:'🤏'},espionnage:{label:'Espionnage',icon:'👁️'},parole:{label:'Parole',icon:'💬'}};
-const XP_STADE=[0,100,300,600];
+const XP_STADE=[0,20,50,100];
 const STADES=['Base','L1','L2','L3'];
-const XP_SKILL=[10,30,60];
+const XP_SKILL=[8,20,40];
 const RESULT_LABELS={critical_fail:'💀 Échec Critique',fail:'✗ Échec',success:'✓ Succès',strong_success:'★ Succès Fort',critical:'⚡ Succès Critique'};
 const DEF={
   game:{status:'lobby',objectZone:null,objectHolder:null,timerEnd:null,startedAt:null,winner:null,winnerMsg:null},
@@ -577,17 +577,66 @@ window.showActionSheet=function(){
 
 window.showZonePicker=function(){
   const zones=DATA.config?.activeZones||Object.keys(ZONES);
-  showModal('<div class="ct">📍 Choisir une zone</div>'
+  const codesActive=DATA.zones&&Object.keys(DATA.zones).some(z=>DATA.zones[z]?.code);
+  showModal('<div class="ct">📍 Se déplacer</div>'
+    +(codesActive?'<div style="font-size:11px;color:var(--orange);text-align:center;margin-bottom:10px">🔒 Codes de zone actifs — entre dans la pièce pour trouver le code</div>':'')
     +'<div class="zg">'+zones.map(zid=>{
       const z=ZONES[zid],here=Object.values(DATA.players||{}).filter(p=>p.zone===zid),isMine=ME?.zone===zid;
-      return'<div class="zc'+(isMine?' mine':'')+'" onclick="moveZone(\''+zid+'\')">'
+      const hasCode=DATA.zones?.[zid]?.code;
+      return'<div class="zc'+(isMine?' mine':'')+'" onclick="selectZoneToMove(\''+zid+'\')">'
         +'<div style="font-size:24px">'+z.icon+'</div>'
         +'<div style="font-size:11px;font-weight:700">'+z.name+'</div>'
+        +(hasCode&&!isMine?'<div style="font-size:9px;color:var(--orange)">🔒</div>':'')
         +(here.length?'<div class="zc-count">'+here.length+' 👤</div>':'')
         +'</div>';}).join('')+'</div>'
     +'<button class="btn btn-gray" style="margin-top:12px" onclick="closeModal()">Annuler</button>')
 };
+window.selectZoneToMove=function(zid){
+  const z=ZONES[zid],code=DATA.zones?.[zid]?.code;
+  if(!code||isAdmin()){moveZone(zid);return}
+  closeModal();
+  showModal('<div style="text-align:center;margin-bottom:14px">'
+    +'<div style="font-size:36px">'+z.icon+'</div>'
+    +'<div style="font-family:\'Press Start 2P\';font-size:10px;color:var(--gold);margin:8px 0">'+z.name+'</div>'
+    +'<div style="font-size:12px;color:var(--gray);margin-bottom:12px">Entre le code secret affiché dans cette pièce</div>'
+    +'</div>'
+    +'<input id="zone-code-inp" class="inp pin-inp" placeholder="???" maxlength="6" style="text-transform:uppercase" autocomplete="off">'
+    +'<button class="btn btn-blue" onclick="submitZoneCode(\''+zid+'\')">Confirmer</button>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="showZonePicker()">← Retour</button>')
+  setTimeout(()=>document.getElementById('zone-code-inp')?.focus(),200)
+};
+window.submitZoneCode=function(zid){
+  const inp=document.getElementById('zone-code-inp');
+  const val=inp?.value?.trim().toUpperCase();
+  const expected=(DATA.zones?.[zid]?.code||'').toUpperCase();
+  if(val===expected){moveZone(zid)}
+  else{inp.value='';inp.style.borderColor='var(--red)';inp.placeholder='Code incorrect';setTimeout(()=>{inp.style.borderColor='';inp.placeholder='???'},1500)}
+};
 window.moveZone=async function(zid){closeModal();await fbUpd('/players/'+myId,{zone:zid});addEv('info',ME.name+' se déplace vers '+ZONES[zid].name,myId);notify('📍 '+ZONES[zid].name,'var(--blue)');renderTab()};
+
+// Admin : gérer les codes de zone
+window.showZoneCodes=function(){
+  const zones=DATA.config?.activeZones||Object.keys(ZONES);
+  showModal('<div class="ct">🔑 Codes de zone</div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-bottom:12px">Définis un code secret pour chaque zone. Les joueurs devront le trouver physiquement sur place.</div>'
+    +zones.map(zid=>{
+      const z=ZONES[zid],cur=DATA.zones?.[zid]?.code||'';
+      return'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+        +'<span style="font-size:18px;flex-shrink:0">'+z.icon+'</span>'
+        +'<span style="flex:1;font-size:12px;font-weight:700">'+z.name+'</span>'
+        +'<input id="zc-'+zid+'" class="inp" style="width:90px;margin:0;font-family:\'Press Start 2P\';font-size:11px;text-align:center;text-transform:uppercase;padding:6px" placeholder="---" value="'+cur+'" maxlength="6">'
+        +'</div>';}).join('')
+    +'<button class="btn btn-gold" style="margin-top:12px" onclick="saveZoneCodes()">💾 Enregistrer</button>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="clearZoneCodes()">🗑️ Supprimer tous les codes</button>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal()">Fermer</button>')
+};
+window.saveZoneCodes=async function(){
+  const zones=DATA.config?.activeZones||Object.keys(ZONES);
+  const upd={};
+  zones.forEach(zid=>{const v=document.getElementById('zc-'+zid)?.value?.trim().toUpperCase();if(v)upd[zid]={code:v};else upd[zid]=null;});
+  await fbSet('/zones',upd);closeModal();notify('Codes enregistrés !','var(--green)')
+};
+window.clearZoneCodes=async function(){await fbSet('/zones',null);closeModal();notify('Codes supprimés','var(--gray)');}
 
 window.showTargets=function(action){
   const myZone=ME?.zone;
@@ -623,13 +672,12 @@ function rCarte(){
   const cards=zones.map(zid=>{
     const z=ZONES[zid];
     const here=Object.values(DATA.players||{}).filter(p=>p.zone===zid);
-    const isObj=isAdmin()&&DATA.game.objectZone===zid,isMine=ME?.zone===zid;
-    return'<div class="zc'+(isObj?' obj':'')+(isMine?' mine':'')+'" onclick="onZoneCarte(\''+zid+'\')">'
+    const isMine=ME?.zone===zid;
+    return'<div class="zc'+(isMine?' mine':'')+'" onclick="onZoneCarte(\''+zid+'\')">'
       +'<div style="font-size:28px">'+z.icon+'</div>'
       +'<div style="font-size:11px;font-weight:700;margin:4px 0">'+z.name+'</div>'
       +(isMine?'<div style="font-size:9px;color:var(--blue)">📍 Vous</div>':'')
       +(here.length?'<div class="zc-count">'+here.map(p=>p.name).join(', ')+'</div>':'')
-      +(isObj?'<div style="font-size:9px;color:var(--gold)">🗝️ Objet ici</div>':'')
       +'</div>';}).join('');
   return'<div class="carte-wrap"><div class="card"><div class="ct">🗺️ Zones</div><div class="zg">'+cards+'</div></div></div>'
 }
@@ -674,7 +722,9 @@ function rJoueurs(){
         +(sameZ&&onCd?'<span class="badge badge-cd">⏳</span>':'')
         +'</div></div>'
     }).join('')+'</div>'
-    +(isAdmin()?'<div class="card" style="border-color:var(--purple)"><div class="ct">👑 MJ — Message</div>'
+    +(isAdmin()?'<div class="card" style="border-color:var(--purple)"><div class="ct">👑 MJ — Outils</div>'
+      +'<button class="btn btn-gold" style="margin-bottom:8px" onclick="showZoneCodes()">🔑 Codes de zone (déplacements IRL)</button>'
+      +'<button class="btn btn-red" style="margin-bottom:12px" onclick="adminEnd()">⏹️ Terminer la partie</button>'
       +'<textarea id="mj-msg" class="inp" placeholder="Message narratif pour tous les joueurs..." style="margin-bottom:8px"></textarea>'
       +'<button class="btn btn-purple" onclick="sendMJMsg()">📜 Envoyer au journal</button></div>':'')
     +'</div>'
