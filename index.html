@@ -163,6 +163,27 @@ textarea.inp{resize:none;height:80px;font-size:14px;line-height:1.5}
 .ev.success{border-color:var(--green)}.ev.fail{border-color:var(--red)}.ev.info{border-color:var(--blue)}.ev.critical{border-color:var(--gold)}.ev.mj{border-color:var(--purple)}
 .ev-time{font-size:10px;color:var(--gray);margin-top:4px}
 
+/* ── Chat ── */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100dvh - 128px)}
+.chat-msgs{flex:1;overflow-y:auto;padding:10px 12px}
+.chat-msg{background:var(--panel);border-radius:8px;padding:8px 10px;margin-bottom:6px}
+.chat-msg.mine{background:rgba(64,128,240,.15);border:1px solid rgba(64,128,240,.3)}
+.chat-msg-name{font-size:10px;color:var(--gold);font-weight:800;margin-bottom:3px}
+.chat-msg.mine .chat-msg-name{color:var(--blue)}
+.chat-msg-text{font-size:13px;line-height:1.5}
+.chat-msg-time{font-size:10px;color:var(--gray);margin-top:3px}
+.chat-input-row{padding:8px 12px;background:var(--bg2);border-top:1px solid var(--border);display:flex;gap:8px;align-items:center}
+.chat-input-row input{flex:1;padding:10px 12px;background:var(--panel);border:1px solid var(--border);border-radius:20px;color:var(--white);font-family:'Nunito';font-size:14px;outline:none}
+.chat-input-row input:focus{border-color:var(--blue)}
+.chat-send{background:var(--blue);border:none;border-radius:50%;width:38px;height:38px;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0}
+
+/* ── Numpad ── */
+.numpad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.numpad-key{background:var(--panel);border:2px solid var(--border);border-radius:8px;padding:14px;font-family:'Nunito';font-weight:800;font-size:20px;color:var(--white);cursor:pointer;text-align:center;transition:transform .1s,background .1s}
+.numpad-key:active{transform:scale(.93);background:var(--dim)}
+.numpad-key.del{color:var(--orange)}.numpad-key.ok{background:var(--gold);border-color:#c09020;color:#0a0a1a}
+.numpad-display{font-family:'Press Start 2P';font-size:24px;letter-spacing:10px;text-align:center;min-height:44px;padding:8px;background:var(--bg);border-radius:8px;margin-bottom:4px}
+
 /* ── Dice ── */
 .dice-result{text-align:center;padding:16px 0}
 .dice-num{font-family:'Press Start 2P';font-size:48px;margin:8px 0;animation:dice-pop .3s ease}
@@ -365,17 +386,31 @@ function flowHtml(){
       +'<button class="btn btn-gold" style="margin-top:12px" onclick="flowNext()"'+(d.genre?'':' disabled')+'>Continuer →</button>'
       +'<button class="btn btn-gray" style="margin-top:8px" onclick="flowBack()">← Retour</button>';
   }
-  if(s===pinS)return'<div class="flow-title" style="font-size:11px">PIN Secret</div>'
-    +'<div class="flow-sub">4 chiffres pour protéger ton inventaire</div>'+dots()
-    +'<div style="display:flex;justify-content:center;margin-bottom:12px">'+sImg(d.classe,d.genre,0,120,'hero-sprite s0')+'</div>'
-    +'<div style="text-align:center;margin-bottom:16px"><div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold)">'+d.name+'</div>'
-    +'<div style="font-size:11px;color:var(--gray);margin-top:4px">'+(TITLES[d.classe]?.[0]||'')+' — '+d.classe+'</div></div>'
-    +'<input id="f-pin" type="password" inputmode="numeric" class="inp pin-inp" placeholder="••••" maxlength="6">'
-    +'<button class="btn btn-gold" onclick="flowFinish()">C\'est parti !</button>'
-    +'<button class="btn btn-gray" style="margin-top:8px" onclick="flowBack()">← Retour</button>';
+  if(s===pinS){
+    const pinVal=flow.data.pin||'';
+    const dots4=Array.from({length:6},(_,i)=>pinVal.length>i?'●':'·').join(' ');
+    return'<div class="flow-title" style="font-size:11px">PIN Secret</div>'
+      +'<div class="flow-sub">4 à 6 chiffres pour protéger ton inventaire</div>'+dots()
+      +'<div style="display:flex;justify-content:center;margin-bottom:12px">'+sImg(d.classe,d.genre,0,100,'hero-sprite s0')+'</div>'
+      +'<div style="text-align:center;margin-bottom:12px"><div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold)">'+d.name+'</div></div>'
+      +'<div class="numpad-display" style="margin-bottom:8px">'+dots4+'</div>'
+      +'<div class="numpad-grid">'
+      +[1,2,3,4,5,6,7,8,9].map(n=>'<button class="numpad-key" onclick="flowPinKey(\''+n+'\')">'+n+'</button>').join('')
+      +'<button class="numpad-key del" onclick="flowPinKey(\'del\')">⌫</button>'
+      +'<button class="numpad-key" onclick="flowPinKey(\'0\')">0</button>'
+      +'<button class="numpad-key ok" onclick="flowFinish()" '+(pinVal.length>=4?'':'disabled')+'>✓</button>'
+      +'</div>'
+      +'<button class="btn btn-gray" style="margin-top:8px" onclick="flowBack()">← Retour</button>';
+  }
   return'';
 }
 
+window.flowPinKey=function(k){
+  const d=flow.data;
+  if(k==='del')d.pin=(d.pin||'').slice(0,-1);
+  else if((d.pin||'').length<6)d.pin=(d.pin||'')+k;
+  renderFlow()
+};
 window.flowNext=async function(){
   const s=flow.step,d=flow.data,isJoin=flow.mode==='join';
   const nameS=isJoin?2:1,classeS=isJoin?3:2;
@@ -393,21 +428,21 @@ window.flowNext=async function(){
 window.flowBack=function(){if(flow.step<=1){renderHome();return}flow.step--;renderFlow()};
 window.flowSet=function(key,val){flow.data[key]=val;renderFlow()};
 window.flowFinish=async function(){
-  const pin=document.getElementById('f-pin')?.value;
+  const pin=flow.data.pin;
   if(!pin||pin.length<4){notify('PIN trop court (4 chiffres)','var(--red)');return}
-  flow.data.pin=pin;savePin(pin);
+  savePin(pin);
   const d=flow.data,amAdmin=flow.mode==='create';
   if(amAdmin){
     const code=genCode();
     await DB.ref('/').set({...DEF,config:{...DEF.config,timerMinutes:30,gameCode:code,gameId:Date.now()}});
-    addEv('info','Partie créée — Code : '+code,null);
+    addEv('system','Partie créée — Code : '+code,null); // 'system' = filtré du journal
   }
   const player={name:d.name,classe:d.classe,genre:d.genre,pin:d.pin,
     xp:0,gold:0,skills:{fouille:0,vol:0,espionnage:0,parole:0},skillXp:{fouille:0,vol:0,espionnage:0,parole:0},
     pityCounts:{fouille:0,vol:0,espionnage:0,parole:0,negociation:0},
     inventory:[],cooldowns:{},zone:null,online:true,isAdmin:amAdmin,joinedAt:Date.now()};
   await fbSet('/players/'+myId,player);
-  addEv('info',d.name+(amAdmin?' crée':'  rejoint')+' la partie !',myId);
+  addEv('system',d.name+(amAdmin?' crée':'  rejoint')+' la partie',myId);
   creating=false;render()
 };
 
@@ -434,11 +469,21 @@ function renderWait(){
     +(p.isAdmin?'<span class="badge badge-admin">👑</span>':'')
     +(isAdmin()&&pid2!==myId?'<button style="background:var(--red);border:none;border-radius:3px;color:#fff;font-size:11px;padding:3px 8px;cursor:pointer" onclick="kickPlayer(\''+pid2+'\')">✕</button>':'')
     +'</div></div>';});
-  if(isAdmin())h+='<div style="margin-top:20px">'
-    +'<label style="font-size:12px;color:var(--gray)">Durée (minutes)</label>'
-    +'<input id="tl" type="number" class="inp" value="'+timer+'" min="1" max="180" style="margin:8px 0">'
-    +'<button class="btn btn-gold" onclick="adminStart()">⚔️ Lancer la partie</button>'
-    +'<button class="btn btn-red" style="margin-top:8px" onclick="confirmDelete()">🗑️ Supprimer la partie</button></div>';
+  if(isAdmin()){
+    const allZ=Object.keys(ZONES),activeZ=DATA.config?.activeZones||allZ;
+    h+='<div style="margin-top:20px">'
+      +'<label style="font-size:12px;color:var(--gray)">Durée (minutes)</label>'
+      +'<input id="tl" type="number" class="inp" value="'+timer+'" min="1" max="180" style="margin:8px 0">'
+      +'<div style="margin-bottom:12px"><div style="font-size:12px;color:var(--gray);margin-bottom:8px">Zones actives</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:6px">'
+      +allZ.map(zid=>{const z=ZONES[zid],on=activeZ.includes(zid)||activeZ[zid];
+        return'<label style="display:flex;align-items:center;gap:4px;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:4px 10px;cursor:pointer;font-size:12px">'
+          +'<input type="checkbox" id="zchk-'+zid+'"'+(on?' checked':'')+' style="accent-color:var(--gold)">'+z.icon+' '+z.name+'</label>';}).join('')
+      +'</div></div>'
+      +'<button class="btn btn-gold" onclick="adminStart()">⚔️ Lancer la partie</button>'
+      +'<button class="btn btn-blue" style="margin-top:8px" onclick="showQRCodes()">📱 Générer les QR codes</button>'
+      +'<button class="btn btn-red" style="margin-top:8px" onclick="confirmDelete()">🗑️ Supprimer la partie</button></div>';
+  }
   else h+='<div style="text-align:center;font-size:12px;color:var(--gray);margin-top:20px">En attente du Maître du Jeu...</div>';
   h+='</div></div>';
   document.getElementById('app').innerHTML=h
@@ -447,13 +492,68 @@ window.kickPlayer=async function(pid2){const p=DATA.players[pid2];if(!p)return;a
 window.adminStart=async function(){
   const inp=document.getElementById('tl')||document.getElementById('adm-t');
   const t=parseInt(inp?.value||30);
-  const zz=DATA.config?.activeZones||Object.keys(ZONES);
+  // Lire les zones cochées (si checkboxes présentes)
+  const allZ=Object.keys(ZONES);
+  const checked=allZ.filter(z=>{const cb=document.getElementById('zchk-'+z);return cb?cb.checked:true});
+  const zz=checked.length?checked:allZ;
   const rz=zz[Math.floor(Math.random()*zz.length)];
-  await fbUpd('/config',{timerMinutes:t});
+  await fbUpd('/config',{timerMinutes:t,activeZones:zz});
   await fbUpd('/game',{status:'playing',objectZone:rz,objectHolder:null,timerEnd:Date.now()+t*60000,startedAt:Date.now()});
   addEv('mj','⚔️ La quête commence ! Durée : '+t+' min. L\'objet a été caché...',null);
   notify('Partie lancée !','var(--green)')
 };
+
+// ══ QR CODES ══
+const APP_URL='https://hbantoine.github.io/mj/';
+function qrImg(data,size){return'<img src="https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&data='+encodeURIComponent(data)+'" width="'+size+'" height="'+size+'" style="border-radius:6px;display:block">'}
+window.showQRCodes=function(){
+  const ps=Object.entries(DATA.players||{});
+  const zones=DATA.config?.activeZones||Object.keys(ZONES);
+  let h='<div class="ct">📱 QR Codes</div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-bottom:14px">Imprime ces QR codes. Colle les QR de zone dans les pièces. Donne leur QR aux joueurs.</div>'
+    +'<div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold);margin-bottom:8px">Zones</div>';
+  zones.forEach(zid=>{
+    const z=ZONES[zid],url=APP_URL+'#qr:zone:'+zid;
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px">'
+      +qrImg(url,72)
+      +'<div><div style="font-weight:800;font-size:13px">'+z.icon+' '+z.name+'</div>'
+      +'<div style="font-size:9px;color:var(--gray);word-break:break-all;margin-top:4px">'+url+'</div></div></div>';
+  });
+  if(ps.length){
+    h+='<div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold);margin:12px 0 8px">Joueurs</div>';
+    ps.forEach(([pid2,p])=>{
+      const url=APP_URL+'#qr:player:'+pid2;
+      h+='<div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px">'
+        +qrImg(url,72)
+        +sImg(p.classe,p.genre,p.xp||0,52)
+        +'<div><div style="font-weight:800;font-size:13px">'+p.name+'</div>'
+        +'<div style="font-size:9px;color:var(--gray);word-break:break-all;margin-top:4px">'+url+'</div></div></div>';
+    });
+  }
+  h+='<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal()">Fermer</button>';
+  showModal(h)
+};
+
+// ══ SCAN QR (via hash URL) ══
+function handleHash(){
+  const h=location.hash;
+  if(!h.startsWith('#qr:'))return;
+  const parts=h.slice(4).split(':');
+  location.hash='';
+  if(!DATA||!ME){notify('Connecte-toi d\'abord','var(--orange)');return}
+  if(parts[0]==='zone'){
+    const zid=parts[1];
+    if(!ZONES[zid]){notify('Zone inconnue','var(--red)');return}
+    moveZone(zid);notify('📍 '+ZONES[zid].name+' — QR validé !','var(--green)')
+  } else if(parts[0]==='player'){
+    const tid=parts[1];
+    if(tid===myId){notify('C\'est ton propre QR code !','var(--gray)');return}
+    const p=DATA.players?.[tid];
+    if(!p){notify('Joueur introuvable','var(--red)');return}
+    onPlayer(tid)
+  }
+}
+window.addEventListener('hashchange',handleHash);
 window.confirmDelete=function(){showModal('<div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:800">Supprimer la partie ?</div>'
   +'<div style="font-size:12px;color:var(--gray);margin-top:6px">Tous les joueurs seront déconnectés</div></div>'
   +'<button class="btn btn-red" style="margin-bottom:8px" onclick="doDelete()">Oui, supprimer</button>'
@@ -478,15 +578,16 @@ function gameHdr(){
     +'</div></div>'
 }
 function navHtml(){
-  const tabs=[{id:'hero',i:'🧙',l:'Héros'},{id:'carte',i:'🗺️',l:'Carte'},{id:'joueurs',i:'👥',l:'Joueurs'},{id:'journal',i:'📜',l:'Journal'},{id:'inventaire',i:'🎒',l:'Sac'}];
-  return'<nav class="nav">'+tabs.map(t=>'<button class="nb'+(curTab===t.id?' active':'')+'" onclick="setTab(\''+t.id+'\')">'
-    +'<span class="ni">'+t.i+'</span>'+t.l+'</button>').join('')+'</nav>'
+  const tabs=[{id:'hero',i:'🧙',l:'Héros'},{id:'carte',i:'🗺️',l:'Carte'},{id:'joueurs',i:'👥',l:'Joueurs'},{id:'chat',i:'💬',l:'Chat'},{id:'journal',i:'📜',l:'Journal'},{id:'inventaire',i:'🎒',l:'Sac'}];
+  return'<nav class="nav" style="height:60px">'+tabs.map(t=>'<button class="nb'+(curTab===t.id?' active':'')+'" onclick="setTab(\''+t.id+'\')" style="font-size:8px">'
+    +'<span style="font-size:19px">'+t.i+'</span><br>'+t.l+'</button>').join('')+'</nav>'
 }
 window.setTab=function(t){curTab=t;document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick').includes("'"+t+"'")));renderTab()};
 function renderTab(){
   const sc=document.getElementById('sc');if(!sc)return;
-  const fns={hero:rHero,carte:rCarte,joueurs:rJoueurs,journal:rJournal,inventaire:rInventaire};
-  sc.innerHTML=(fns[curTab]||rHero)()
+  const fns={hero:rHero,carte:rCarte,joueurs:rJoueurs,chat:rChat,journal:rJournal,inventaire:rInventaire};
+  sc.innerHTML=(fns[curTab]||rHero)();
+  if(curTab==='chat'){const cm=document.getElementById('chat-msgs');if(cm)cm.scrollTop=cm.scrollHeight}
 }
 
 // ══ TAB HÉROS ══
@@ -758,24 +859,81 @@ window.sendMJMsg=function(){
   notify('Message envoyé','var(--purple)');renderTab()
 };
 
+// ══ TAB CHAT ══
+function rChat(){
+  const msgs=Object.values(DATA.chat||{}).sort((a,b)=>a.ts-b.ts).slice(-60);
+  const msgsHtml=msgs.length
+    ?msgs.map(m=>'<div class="chat-msg'+(m.pid===myId?' mine':'')+'">'
+      +'<div class="chat-msg-name">'+m.name+(m.pid===myId?' (moi)':'')+'</div>'
+      +'<div class="chat-msg-text">'+m.text.replace(/</g,'&lt;')+'</div>'
+      +'<div class="chat-msg-time">'+fmtTs(m.ts)+'</div></div>').join('')
+    :'<div style="text-align:center;color:var(--gray);padding:20px;font-size:12px">Aucun message. Dites bonjour !</div>';
+  return'<div class="chat-wrap" style="padding-bottom:0">'
+    +'<div class="chat-msgs" id="chat-msgs">'+msgsHtml+'</div>'
+    +'<div class="chat-input-row">'
+    +'<input id="chat-inp" class="inp" style="margin:0" placeholder="Message..." maxlength="200" onkeydown="if(event.key===\'Enter\')sendChat()">'
+    +'<button class="chat-send" onclick="sendChat()">➤</button></div></div>'
+}
+window.sendChat=function(){
+  const inp=document.getElementById('chat-inp');
+  const txt=inp?.value?.trim();
+  if(!txt||!ME)return;
+  fbPush('/chat',{pid:myId,name:ME.name,text:txt,ts:Date.now()});
+  inp.value='';
+};
+
 // ══ TAB JOURNAL ══
 function rJournal(){
-  const evs=Object.values(DATA.events||{}).sort((a,b)=>b.ts-a.ts).slice(0,80);
-  if(!evs.length)return'<div class="panel" style="margin:12px;text-align:center;color:var(--gray)">Aucun événement</div>';
+  // Filtre les events système (création/join) qui ne doivent pas être visibles
+  const evs=Object.values(DATA.events||{})
+    .filter(e=>e.type!=='system')
+    .sort((a,b)=>b.ts-a.ts).slice(0,80);
+  if(!evs.length)return'<div class="panel" style="margin:12px;text-align:center;color:var(--gray)">Aucun événement de jeu</div>';
   return'<div style="padding:12px"><div class="card"><div class="ct">📜 Journal</div>'
     +evs.map(e=>'<div class="ev '+e.type+'"><div>'+e.text+'</div><div class="ev-time">'+fmtTs(e.ts)+'</div></div>').join('')+'</div>'
     +(isAdmin()?'<div class="card" style="border-color:var(--purple)"><div class="ct">👑 MJ — Narration</div>'
-      +'<textarea id="mj-msg2" class="inp" placeholder="Décris un événement, donne une ambiance..."></textarea>'
+      +'<textarea id="mj-msg2" class="inp" placeholder="Décris un événement, une ambiance..."></textarea>'
       +'<button class="btn btn-purple" onclick="sendMJMsg2()">📜 Publier</button></div>':'')
     +'</div>'
 }
 window.sendMJMsg2=function(){const msg=document.getElementById('mj-msg2')?.value?.trim();if(!msg||msg.length<2){notify('Message vide','var(--red)');return}addEv('mj','👑 MJ : '+msg,myId);document.getElementById('mj-msg2').value='';notify('Message publié','var(--purple)');renderTab()};
 
+// ══ NUMPAD ══
+let _npVal='',_npMax=6,_npDone=null;
+function showNumpad(title,max,onDone){
+  _npVal='';_npMax=max;_npDone=onDone;
+  showModal(_npHtml(title));
+}
+function _npHtml(title){
+  const dots=Array.from({length:_npMax},(_,i)=>_npVal.length>i?'●':'·').join(' ');
+  return'<div style="text-align:center;margin-bottom:8px">'
+    +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gold);margin-bottom:12px">'+title+'</div>'
+    +'<div class="numpad-display">'+dots+'</div></div>'
+    +'<div class="numpad-grid">'
+    +[1,2,3,4,5,6,7,8,9].map(n=>'<button class="numpad-key" onclick="npKey(\''+n+'\')">'+n+'</button>').join('')
+    +'<button class="numpad-key del" onclick="npKey(\'del\')">⌫</button>'
+    +'<button class="numpad-key" onclick="npKey(\'0\')">0</button>'
+    +'<button class="numpad-key ok" onclick="npKey(\'ok\')">✓</button>'
+    +'</div>'
+    +'<button class="btn btn-gray" style="margin-top:4px" onclick="closeModal()">Annuler</button>'
+}
+window.npKey=function(k){
+  const mo=document.querySelector('.mo');if(!mo)return;
+  const title=mo.querySelector('[style*="Press Start"]')?.textContent||'';
+  if(k==='del'){_npVal=_npVal.slice(0,-1)}
+  else if(k==='ok'){
+    if(_npVal.length<4){const d=mo.querySelector('.numpad-display');if(d){d.style.color='var(--red)';setTimeout(()=>d.style.color='',600)}return}
+    closeModal();if(_npDone)_npDone(_npVal);return
+  }else if(_npVal.length<_npMax){_npVal+=k}
+  mo.innerHTML=_npHtml(title)
+};
+
 // ══ TAB INVENTAIRE ══
 function rInventaire(){
-  if(!myPin)return'<div style="padding:20px"><div class="ct" style="text-align:center;margin-bottom:16px">🔒 PIN Inventaire</div>'
-    +'<input id="pin-i" type="password" inputmode="numeric" class="inp pin-inp" placeholder="••••" maxlength="6">'
-    +'<button class="btn btn-gold" onclick="pinSubmit()">Déverrouiller</button></div>';
+  if(!myPin)return'<div style="padding:20px">'
+    +'<div class="ct" style="text-align:center;margin-bottom:8px">🔒 PIN Inventaire</div>'
+    +'<div style="text-align:center;color:var(--gray);font-size:12px;margin-bottom:16px">Entre ton PIN pour accéder à ton sac</div>'
+    +'<button class="btn btn-gold" onclick="showNumpad(\'PIN Inventaire\',6,pinSubmit)">🔑 Entrer mon PIN</button></div>';
   const xp=ME?.xp||0,s=stadeOf(xp);
   const skillRows=Object.entries(SKILLS).map(([k,sk])=>{
     const lvl=ME?.skills?.[k]||0,sxp=ME?.skillXp?.[k]||0;
@@ -791,11 +949,16 @@ function rInventaire(){
     +(ME?.hasObject?'<div class="card" style="border-color:var(--gold);text-align:center">'
       +'<div style="font-size:40px;margin:8px 0">🗝️</div>'
       +'<div style="font-weight:800;margin-bottom:8px">Vous possédez L\'OBJET</div>'
-      +'<button class="btn btn-gray btn-sm" onclick="showZonePicker()">Chacher dans une zone...</button></div>':'')
+      +'<button class="btn btn-gray btn-sm" onclick="showZonePicker()">Cacher dans une zone...</button></div>':'')
     +'<div class="card"><div class="ct">📊 Compétences</div>'+skillRows+'</div>'
     +'<button class="btn btn-gray btn-sm" onclick="lockInv()" style="display:block;margin:0 auto">🔒 Verrouiller</button></div>'
 }
-window.pinSubmit=function(){const v=document.getElementById('pin-i')?.value;if(!v||v.length<4){notify('PIN trop court','var(--red)');return}if(myPin&&v!==myPin){notify('PIN incorrect','var(--red)');return}if(!myPin){savePin(v);notify('PIN sauvegardé !','var(--green)')}renderTab()};
+window.pinSubmit=function(v){
+  if(!v||v.length<4){notify('PIN trop court','var(--red)');return}
+  if(myPin&&v!==myPin){notify('PIN incorrect','var(--red)');setTimeout(()=>showNumpad('PIN Inventaire',6,pinSubmit),400);return}
+  if(!myPin){savePin(v);notify('PIN sauvegardé !','var(--green)')}
+  renderTab()
+};
 window.lockInv=function(){myPin=null;renderTab()};
 
 // ══ ADMIN BLOCK (onglet héros si admin) ══
@@ -1025,6 +1188,8 @@ function startTimer(){
 document.getElementById('app').innerHTML='<div class="loading"><div class="loading-title">MJ</div><div class="loading-sub">Connexion...</div></div>';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 try{initFB()}catch(e){document.getElementById('app').innerHTML='<div style="padding:20px;color:#e04040;font-size:12px">Erreur : '+e.message+'</div>'}
+// Scan QR au chargement si hash présent
+if(location.hash.startsWith('#qr:'))window.addEventListener('load',()=>setTimeout(handleHash,1200));
 </script>
 </body>
 </html>
