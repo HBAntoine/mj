@@ -1,4 +1,4 @@
-const CACHE = 'mj-sprites-v2';
+const CACHE = 'mj-sprites-v3';
 const CACHE_FILES = [
   './icons/icon-192.png',
   './icons/icon-512.png',
