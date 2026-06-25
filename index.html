@@ -351,8 +351,52 @@ function renderHome(){
 window.renderHome=renderHome;
 
 // ══ FLUX CRÉATION ══
-function startFlow(mode){creating=true;flow={mode,step:1,data:{name:'',classe:'',genre:'',pin:'',code:''}};renderFlow()}
+function startFlow(mode){
+  if(mode==='join'){showJoinCardModal();return}
+  creating=true;flow={mode,step:1,data:{name:'',classe:'',genre:'',pin:'',code:'',cardId:''}};renderFlow()
+}
 window.startFlow=startFlow;
+
+// ── Étape 0 : scan / saisie de la carte avant le flow join ──
+function showJoinCardModal(){
+  showModal('<div class="ct">🃏 Ta carte joueur</div>'
+    +'<div style="font-size:12px;color:var(--gray);margin-bottom:16px">Commence par scanner ou entrer le numéro de ta carte.</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:6px">'
+    +'<input id="join-card-inp" class="inp" style="flex:1;margin:0;text-transform:uppercase;font-size:18px;text-align:center" placeholder="C07" maxlength="4" autocomplete="off" oninput="this.value=this.value.toUpperCase()">'
+    +'<button class="btn btn-gold btn-sm" onclick="confirmJoinCard()">→</button></div>'
+    +'<div style="font-size:10px;color:var(--gray);margin:10px 0">— ou avec la caméra —</div>'
+    +'<button class="btn btn-blue" onclick="scanJoinCard()">📱 Scanner ma carte</button>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal()">Annuler</button>'
+    +'<div id="join-card-err" style="color:var(--red);font-size:11px;margin-top:8px;text-align:center"></div>')
+}
+window.confirmJoinCard=function(){
+  let v=(document.getElementById('join-card-inp')?.value||'').trim().toUpperCase();
+  if(!v.startsWith('C'))v='C'+v;
+  if(!CARD_IDS.includes(v)){document.getElementById('join-card-err').textContent='Numéro invalide — ex : C07 ou 7';return}
+  _startJoinFlow(v)
+};
+window.scanJoinCard=function(){
+  localStorage.setItem('mj_pending_assign',JSON.stringify({target:'pending_join',name:'join'}));
+  // Remplace le contenu du modal par "En attente du scan..."
+  document.querySelector('.mo').innerHTML=
+    '<div style="text-align:center;padding:8px 0">'
+    +'<div style="font-size:48px;margin-bottom:12px">📱</div>'
+    +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gold);margin-bottom:10px">Scanne ta carte</div>'
+    +'<div style="font-size:12px;color:var(--gray);margin-bottom:16px">Ouvre l\'appareil photo et scanne le QR code de ta carte.</div>'
+    +'<button class="btn btn-gray" onclick="closeModal();localStorage.removeItem(\'mj_pending_assign\')">Annuler</button></div>'
+};
+function _startJoinFlow(cardId){
+  closeModal();
+  creating=true;
+  flow={mode:'join',step:1,data:{name:'',classe:'',genre:'',pin:'',code:'',cardId}};
+  renderFlow()
+}
+// Storage event : si le scan s'est ouvert dans un autre onglet
+window.addEventListener('storage',function(e){
+  if(e.key==='mj_join_card_result'&&e.newValue&&creating){
+    localStorage.removeItem('mj_join_card_result');_startJoinFlow(e.newValue)
+  }
+});
 function totalSteps(){return flow.mode==='create'?4:5}
 function renderFlow(){document.getElementById('app').innerHTML='<div class="flow"><div class="flow-inner">'+flowHtml()+'</div></div>'}
 function dots(){const n=totalSteps();return'<div class="steps">'+Array.from({length:n},(_,i)=>'<div class="step-dot'+(i+1<flow.step?' done':i+1===flow.step?' active':'')+'"></div>').join('')+'</div>'}
@@ -446,6 +490,7 @@ window.flowFinish=async function(){
     pityCounts:{fouille:0,vol:0,espionnage:0,parole:0,negociation:0},
     inventory:[],cooldowns:{},zone:null,online:true,isAdmin:amAdmin,joinedAt:Date.now()};
   await fbSet('/players/'+myId,player);
+  if(d.cardId&&!amAdmin)await fbSet('/config/cardMap/'+d.cardId,'player:'+myId);
   addEv('system',d.name+(amAdmin?' crée':'  rejoint')+' la partie',myId);
   creating=false;render()
 };
@@ -719,6 +764,14 @@ function handleHash(){
   if(parts[0]==='card'&&pending){
     localStorage.removeItem('mj_pending_assign');
     const cid=parts[1];
+    // Cas spécial : joueur en cours de rejoindre la partie
+    if(pending.target==='pending_join'){
+      // Même onglet : flow actif
+      if(creating){_startJoinFlow(cid);return}
+      // Onglet différent : signal via localStorage
+      localStorage.setItem('mj_join_card_result',cid);
+      notify('✅ Carte '+cid+' reconnue — reviens sur l\'onglet du jeu','var(--green)');return
+    }
     fbSet('/config/cardMap/'+cid,pending.target).then(()=>{
       notify('✅ Carte '+cid+' liée à '+pending.name,'var(--green)');
       closeModal();renderTab()
