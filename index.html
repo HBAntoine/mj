@@ -280,8 +280,12 @@ function getPin(){return localStorage.getItem('mj_pin')||null}
 function savePin(p){localStorage.setItem('mj_pin',p);myPin=p}
 function isAdmin(){return ME&&ME.isAdmin===true}
 function stadeOf(xp){return xp>=XP_STADE[3]?3:xp>=XP_STADE[2]?2:xp>=XP_STADE[1]?1:0}
-function gZ(zid){const zl=DATA?.config?.zones||ZONES;return zid?zl[zid]:zl} // zones depuis Firebase ou défaut
-function gZL(){return DATA?.config?.zones||ZONES}  // liste complète
+function gZ(zid){const zl=DATA?.config?.zones||ZONES;return zid?zl[zid]:zl}
+function gZL(){return DATA?.config?.zones||ZONES}
+// Normalise "8" → "C08", "c8" → "C08", "C08" → "C08". Retourne null si invalide.
+function parseCardId(v){v=String(v).trim().toUpperCase().replace(/^C/,'');const n=parseInt(v);if(isNaN(n)||n<1||n>100)return null;return'C'+String(n).padStart(2,'0')}
+// Supprime l'ancienne carte assignée à la même cible avant d'en assigner une nouvelle
+async function clearCardFor(target){const cm=DATA?.config?.cardMap||{};const old=Object.keys(cm).find(c=>cm[c]===target);if(old)await DB.ref('/config/cardMap/'+old).remove()}
 function playerTitle(p){return(TITLES[p.classe]||TITLES.Guerrier)[stadeOf(p.xp||0)]}
 function genCode(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from({length:4},()=>c[Math.floor(Math.random()*c.length)]).join('')}
 function fmtTs(ts){if(!ts)return'';const d=new Date(ts);return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
@@ -371,9 +375,8 @@ function showJoinCardModal(){
     +'<div id="join-card-err" style="color:var(--red);font-size:11px;margin-top:8px;text-align:center"></div>')
 }
 window.confirmJoinCard=function(){
-  let v=(document.getElementById('join-card-inp')?.value||'').trim().toUpperCase();
-  if(!v.startsWith('C'))v='C'+v;
-  if(!CARD_IDS.includes(v)){document.getElementById('join-card-err').textContent='Numéro invalide — ex : C07 ou 7';return}
+  const v=parseCardId(document.getElementById('join-card-inp')?.value||'');
+  if(!v){document.getElementById('join-card-err').textContent='Numéro invalide — ex : 7 ou C07';return}
   _startJoinFlow(v)
 };
 window.scanJoinCard=function(){
@@ -652,19 +655,8 @@ window.showCardDeck=function(){
             +'</div>';
         }).join('')
         +'</div>'
-      :'')
-    // ── Toutes les cartes (vue compact) ──
-    +'<div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gray);margin-bottom:8px">Toutes les cartes</div>'
-    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">';
-  CARD_IDS.forEach(cid=>{
-    const assign=cm[cid];
-    const label=assign?assign.startsWith('zone:')?gZ(assign.slice(5))?.name:assign.startsWith('player:')?DATA?.players?.[assign.slice(7)]?.name:'?':null;
-    h+='<div style="background:var(--panel);border:1px solid '+(assign?'var(--green)':'var(--border)')+';border-radius:6px;padding:6px;text-align:center;cursor:pointer" onclick="assignCard(\''+cid+'\')">'
-      +'<div style="font-family:\'Press Start 2P\';font-size:7px;color:'+(assign?'var(--green)':'var(--white)')+'">'+cid+'</div>'
-      +(label?'<div style="font-size:8px;color:var(--gold);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+label+'</div>':'')
-      +'</div>';
-  });
-  h+='</div><button class="btn btn-gray" style="margin-top:14px" onclick="closeModal()">Fermer</button>';
+      :'');
+  h+='<button class="btn btn-gray" style="margin-top:14px" onclick="closeModal()">Fermer</button>';
   showModal(h)
 };
 
@@ -681,9 +673,9 @@ window.assignZoneCard=function(zid){
     +'<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal()">Annuler</button>')
 };
 window.submitZoneCard=async function(zid){
-  let v=(document.getElementById('zone-card-inp')?.value||'').trim().toUpperCase();
-  if(!v.startsWith('C'))v='C'+v;
-  if(!CARD_IDS.includes(v)){notify('Numéro invalide (C01–C100)','var(--red)');return}
+  const v=parseCardId(document.getElementById('zone-card-inp')?.value||'');
+  if(!v){notify('Numéro invalide — ex : 8 ou C08','var(--red)');return}
+  await clearCardFor('zone:'+zid);
   await fbSet('/config/cardMap/'+v,'zone:'+zid);
   notify('✅ Carte '+v+' → '+(gZ(zid)?.name||zid),'var(--green)');closeModal()
 };
@@ -715,7 +707,7 @@ window.assignCard=function(cid){
   showModal(h)
 };
 window.doAssignCard=async function(cid,target){
-  if(target)await fbSet('/config/cardMap/'+cid,target);
+  if(target){await clearCardFor(target);await fbSet('/config/cardMap/'+cid,target)}
   else await DB.ref('/config/cardMap/'+cid).remove();
   notify(target?'Carte '+cid+' assignée':'Carte effacée','var(--green)');
   showCardDeck()
@@ -733,9 +725,9 @@ window.scanMyCard=function(){
     +'<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal()">Annuler</button>')
 };
 window.submitMyCard=async function(){
-  let v=(document.getElementById('my-card-inp')?.value||'').trim().toUpperCase();
-  if(!v.startsWith('C'))v='C'+v;
-  if(!CARD_IDS.includes(v)){notify('Numéro invalide (C01–C100)','var(--red)');return}
+  const v=parseCardId(document.getElementById('my-card-inp')?.value||'');
+  if(!v){notify('Numéro invalide — ex : 8 ou C08','var(--red)');return}
+  await clearCardFor('player:'+myId);
   await fbSet('/config/cardMap/'+v,'player:'+myId);
   notify('✅ Carte '+v+' liée à ton compte','var(--green)');closeModal();renderTab()
 };
@@ -773,7 +765,7 @@ function handleHash(){
       localStorage.setItem('mj_join_card_result',cid);
       notify('✅ Carte '+cid+' reconnue — reviens sur l\'onglet du jeu','var(--green)');return
     }
-    fbSet('/config/cardMap/'+cid,pending.target).then(()=>{
+    clearCardFor(pending.target).then(()=>fbSet('/config/cardMap/'+cid,pending.target)).then(()=>{
       notify('✅ Carte '+cid+' liée à '+pending.name,'var(--green)');
       closeModal();renderTab()
     });return
