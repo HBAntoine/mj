@@ -623,6 +623,20 @@ window.scanMyCard=function(){
     +'<button class="btn btn-gray" style="margin-top:12px" onclick="closeModal();localStorage.removeItem(\'mj_pending_assign\')">Annuler</button>')
 };
 
+// ── Afficher son propre QR en cas de perte de carte ──
+window.showMyQR=function(){
+  const cid=getMyCard();
+  if(!cid){notify('Aucune carte liée','var(--orange)');return}
+  const url=APP_URL+'#qr:card:'+cid;
+  showModal('<div style="text-align:center;padding:4px 0 8px">'
+    +'<div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold);margin-bottom:14px">Mon QR Code</div>'
+    +'<div style="display:inline-block;background:#fff;padding:10px;border-radius:10px;border:2px solid var(--gold)">'
+    +qrImg(url,220)+'</div>'
+    +'<div style="font-family:\'Press Start 2P\';font-size:11px;color:var(--white);margin:12px 0 4px">'+cid+'</div>'
+    +'<div style="font-size:11px;color:var(--gray)">Fais scanner cet écran à la place de ta carte</div></div>'
+    +'<button class="btn btn-gray" style="margin-top:12px" onclick="closeModal()">Fermer</button>')
+};
+
 // ══ SCAN QR (via hash URL) ══
 function handleHash(){
   const h=location.hash;
@@ -719,7 +733,9 @@ function rHero(){
     +'<div class="hero-title">'+playerTitle(ME)+' · '+ME.classe+'</div>'
     +'<div style="width:100%;padding:0 20px">'
     +'<div class="xp-bar"><div class="xp-fill" style="width:'+pct+'%;background:linear-gradient(90deg,var(--purple),var(--blue))"></div></div>'
-    +'<div class="xp-label">'+xp+(nextXp?' / '+nextXp+' XP':'  ✨ Maîtrise absolue')+' · '+STADES[s]+'</div></div></div>';
+    +'<div class="xp-label">'+xp+(nextXp?' / '+nextXp+' XP':'  ✨ Maîtrise absolue')+' · '+STADES[s]+'</div></div>'
+    +(getMyCard()?'<button onclick="showMyQR()" style="background:none;border:1px solid var(--border);border-radius:12px;color:var(--gray);font-size:10px;padding:4px 12px;cursor:pointer;margin-top:6px">📱 Mon QR</button>':'')
+    +'</div>';
 
   // Actions rapides
   const canSocial=myZone&&sameZone.length>0;
