@@ -561,7 +561,7 @@ window.saveZones=async function(){
 
 // ══ QR CARDS (deck pré-imprimé) ══
 const APP_URL='https://hbantoine.github.io/mj/';
-const CARD_IDS=Array.from({length:30},(_,i)=>'C'+(i+1).toString().padStart(2,'0'));
+const CARD_IDS=Array.from({length:100},(_,i)=>'C'+(i+1).toString().padStart(2,'0'));
 function qrImg(data,size){return'<img src="https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&data='+encodeURIComponent(data)+'" width="'+size+'" height="'+size+'" style="border-radius:6px;display:block">'}
 
 // Récupérer la carte associée au joueur courant
@@ -570,30 +570,92 @@ function getMyCard(){const m=DATA?.config?.cardMap||{};return Object.keys(m).fin
 // ── DECK : vue admin pour imprimer une fois pour toutes ──
 window.showCardDeck=function(){
   const cm=DATA?.config?.cardMap||{};
+  const zones=Object.keys(gZL());
+  // Index inverse : target → cid
+  const inv={};Object.entries(cm).forEach(([c,t])=>{inv[t]=c});
+
   let h='<div class="ct">📱 Deck de cartes QR</div>'
-    +'<div style="font-size:11px;color:var(--gray);margin-bottom:4px">30 cartes à imprimer <b>une seule fois</b>. Réutilisables à chaque partie.</div>'
-    +'<div style="font-size:11px;color:var(--orange);margin-bottom:14px">Cette partie : assigne les cartes aux zones et joueurs via le bouton ⚙️</div>'
-    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
-  CARD_IDS.forEach(cid=>{
-    const assign=cm[cid],url=APP_URL+'#qr:card:'+cid;
-    const label=assign?assign.startsWith('zone:')?'🗺️ '+(gZ(assign.slice(5))?.name||assign.slice(5)):assign.startsWith('player:')?'👤 '+(DATA?.players?.[assign.slice(7)]?.name||'?'):'?':'';
-    h+='<div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center">'
-      +qrImg(url,80)
-      +'<div style="font-family:\'Press Start 2P\';font-size:7px;margin:6px 0 2px">'+cid+'</div>'
-      +(label?'<div style="font-size:9px;color:var(--gold)">'+label+'</div>':'<div style="font-size:9px;color:var(--gray)">Non assigné</div>')
-      +'<button style="background:var(--dim);border:none;border-radius:3px;color:var(--white);font-size:9px;padding:3px 6px;cursor:pointer;margin-top:4px" onclick="assignCard(\''+cid+'\')">⚙️</button>'
+    // ── Section zones ──
+    +'<div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold);margin-bottom:8px">Zones — carte assignée</div>'
+    +'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">';
+  zones.forEach(zid=>{
+    const z=gZ(zid)||{name:zid,icon:'📍'};
+    const cid=inv['zone:'+zid];
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px">'
+      +'<span style="font-size:18px">'+z.icon+'</span>'
+      +'<div style="flex:1;font-size:13px;font-weight:700">'+z.name+'</div>'
+      +(cid
+        ?'<span style="font-family:\'Press Start 2P\';font-size:9px;color:var(--green)">'+cid+'</span>'
+        :'<span style="font-size:11px;color:var(--gray)">—</span>')
+      +'<button style="background:var(--dim);border:1px solid var(--border);border-radius:6px;color:var(--white);font-size:11px;padding:5px 10px;cursor:pointer" onclick="assignZoneCard(\''+zid+'\')">✏️</button>'
       +'</div>';
   });
-  h+='</div><button class="btn btn-gray" style="margin-top:12px" onclick="closeModal()">Fermer</button>';
+  h+='</div>'
+    // ── Section joueurs ──
+    +(Object.keys(DATA.players||{}).length
+      ?'<div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold);margin-bottom:8px">Joueurs — carte assignée</div>'
+        +'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">'
+        +Object.entries(DATA.players||{}).map(([pid2,p])=>{
+          const cid=inv['player:'+pid2];
+          return'<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:8px">'
+            +sImg(p.classe,p.genre,p.xp||0,32)
+            +'<div style="flex:1;font-size:13px;font-weight:700">'+p.name+'</div>'
+            +(cid
+              ?'<span style="font-family:\'Press Start 2P\';font-size:9px;color:var(--green)">'+cid+'</span>'
+              :'<span style="font-size:11px;color:var(--gray)">—</span>')
+            +'</div>';
+        }).join('')
+        +'</div>'
+      :'')
+    // ── Toutes les cartes (vue compact) ──
+    +'<div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gray);margin-bottom:8px">Toutes les cartes</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">';
+  CARD_IDS.forEach(cid=>{
+    const assign=cm[cid];
+    const label=assign?assign.startsWith('zone:')?gZ(assign.slice(5))?.name:assign.startsWith('player:')?DATA?.players?.[assign.slice(7)]?.name:'?':null;
+    h+='<div style="background:var(--panel);border:1px solid '+(assign?'var(--green)':'var(--border)')+';border-radius:6px;padding:6px;text-align:center;cursor:pointer" onclick="assignCard(\''+cid+'\')">'
+      +'<div style="font-family:\'Press Start 2P\';font-size:7px;color:'+(assign?'var(--green)':'var(--white)')+'">'+cid+'</div>'
+      +(label?'<div style="font-size:8px;color:var(--gold);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+label+'</div>':'')
+      +'</div>';
+  });
+  h+='</div><button class="btn btn-gray" style="margin-top:14px" onclick="closeModal()">Fermer</button>';
   showModal(h)
 };
 
-// ── Assigner une carte à une zone ou un joueur ──
+// ── Assigner une carte à une zone (admin) — saisie manuelle du numéro ──
+window.assignZoneCard=function(zid){
+  const z=gZ(zid)||{name:zid,icon:'📍'};
+  showModal('<div class="ct">🗺️ '+z.icon+' '+z.name+'</div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-bottom:14px">Entre le numéro de la carte à poser dans cette zone (ex: <b>C07</b>)</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:10px">'
+    +'<input id="zone-card-inp" class="inp" style="flex:1;margin:0;text-transform:uppercase" placeholder="C07" maxlength="4" autocomplete="off">'
+    +'<button class="btn btn-gold btn-sm" onclick="submitZoneCard(\''+zid+'\')">OK</button></div>'
+    +'<div style="font-size:10px;color:var(--gray);margin-bottom:14px">— ou scanne la carte avec ce téléphone —</div>'
+    +'<button class="btn btn-blue" onclick="waitForCardScan(\'zone:'+zid+'\',\''+z.name+'\')">📱 Scanner la carte</button>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal()">Annuler</button>')
+};
+window.submitZoneCard=async function(zid){
+  let v=(document.getElementById('zone-card-inp')?.value||'').trim().toUpperCase();
+  if(!v.startsWith('C'))v='C'+v;
+  if(!CARD_IDS.includes(v)){notify('Numéro invalide (C01–C100)','var(--red)');return}
+  await fbSet('/config/cardMap/'+v,'zone:'+zid);
+  notify('✅ Carte '+v+' → '+(gZ(zid)?.name||zid),'var(--green)');closeModal()
+};
+window.waitForCardScan=function(target,displayName){
+  localStorage.setItem('mj_pending_assign',JSON.stringify({target,name:displayName}));
+  showModal('<div style="text-align:center;padding:12px">'
+    +'<div style="font-size:48px;margin-bottom:12px">📱</div>'
+    +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gold);margin-bottom:8px">Scanne une carte</div>'
+    +'<div style="font-size:12px;color:var(--gray)">Sera assignée à : <b>'+displayName+'</b></div></div>'
+    +'<button class="btn btn-gray" style="margin-top:12px" onclick="closeModal();localStorage.removeItem(\'mj_pending_assign\')">Annuler</button>')
+};
+
+// ── Vue globale du deck (admin) ──
 window.assignCard=function(cid){
   const zones=Object.keys(gZL());
   const ps=Object.entries(DATA.players||{});
-  let h='<div class="ct">⚙️ Assigner la carte '+cid+'</div>'
-    +'<div style="font-size:11px;color:var(--gray);margin-bottom:12px">Ou scanne cette carte avec un tel dont l\'app est en attente…</div>'
+  let h='<div class="ct">⚙️ Carte '+cid+'</div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-bottom:12px">Assigne manuellement ou par scan :</div>'
     +'<div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold);margin-bottom:6px">Zones</div>'
     +'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:10px">'
     +zones.map(zid=>{const z=gZ(zid)||{name:zid,icon:'📍'};return'<button class="btn btn-gray btn-sm" onclick="doAssignCard(\''+cid+'\',\'zone:'+zid+'\')">'+z.icon+' '+z.name+'</button>';}).join('')
@@ -613,14 +675,23 @@ window.doAssignCard=async function(cid,target){
   showCardDeck()
 };
 
-// ── Joueur : scan sa propre carte joueur ──
+// ── Joueur : lier sa carte (scan OU saisie manuelle) ──
 window.scanMyCard=function(){
-  localStorage.setItem('mj_pending_assign',JSON.stringify({target:'player:'+myId,name:ME?.name||'moi'}));
-  showModal('<div style="text-align:center;padding:12px">'
-    +'<div style="font-size:48px;margin-bottom:12px">📱</div>'
-    +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gold);margin-bottom:8px">Scanne ta carte</div>'
-    +'<div style="font-size:12px;color:var(--gray)">Ouvre l\'appareil photo de ton téléphone et scanne la carte QR qu\'on t\'a donnée.</div></div>'
-    +'<button class="btn btn-gray" style="margin-top:12px" onclick="closeModal();localStorage.removeItem(\'mj_pending_assign\')">Annuler</button>')
+  showModal('<div class="ct">📱 Ma carte joueur</div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-bottom:16px">Entre le numéro inscrit sur ta carte, ou scanne-la directement.</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:10px">'
+    +'<input id="my-card-inp" class="inp" style="flex:1;margin:0;text-transform:uppercase" placeholder="C07" maxlength="4" autocomplete="off">'
+    +'<button class="btn btn-gold btn-sm" onclick="submitMyCard()">OK</button></div>'
+    +'<div style="font-size:10px;color:var(--gray);margin-bottom:14px">— ou scanne ta carte avec la caméra —</div>'
+    +'<button class="btn btn-blue" onclick="waitForCardScan(\'player:'+myId+'\',\''+( ME?.name||'moi')+'\')">📱 Scanner ma carte</button>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal()">Annuler</button>')
+};
+window.submitMyCard=async function(){
+  let v=(document.getElementById('my-card-inp')?.value||'').trim().toUpperCase();
+  if(!v.startsWith('C'))v='C'+v;
+  if(!CARD_IDS.includes(v)){notify('Numéro invalide (C01–C100)','var(--red)');return}
+  await fbSet('/config/cardMap/'+v,'player:'+myId);
+  notify('✅ Carte '+v+' liée à ton compte','var(--green)');closeModal();renderTab()
 };
 
 // ── Afficher son propre QR en cas de perte de carte ──
