@@ -1063,8 +1063,7 @@ function rJoueurs(){
     +(isAdmin()?'<div class="card" style="border-color:var(--purple)"><div class="ct">👑 MJ — Outils</div>'
       +'<button class="btn btn-gold" style="margin-bottom:8px" onclick="showZoneCodes()">🔑 Codes de zone (déplacements IRL)</button>'
       +'<button class="btn btn-red" style="margin-bottom:12px" onclick="adminEnd()">⏹️ Terminer la partie</button>'
-      +'<textarea id="mj-msg" class="inp" placeholder="Message narratif pour tous les joueurs..." style="margin-bottom:8px"></textarea>'
-      +'<button class="btn btn-purple" onclick="sendMJMsg()">📜 Envoyer au journal</button></div>':'')
+      +'</div>':'')
     +'</div>'
 }
 
@@ -1086,14 +1085,6 @@ window.onPlayer=function(tid){
       :sameZone&&onCd?'<div style="text-align:center;color:var(--orange);padding:8px;font-size:12px">⏳ Cooldown : '+fmtMs(cdLeft(tid))+'</div>'
       :'<div style="text-align:center;color:var(--gray);padding:8px;font-size:12px">Tu dois être dans la même zone<br>pour interagir avec ce joueur.</div>')
     +'<button class="btn btn-gray" onclick="closeModal()">Fermer</button>')
-};
-
-window.sendMJMsg=function(){
-  const msg=document.getElementById('mj-msg')?.value?.trim();
-  if(!msg||msg.length<2){notify('Message vide','var(--red)');return}
-  addEv('mj','👑 MJ : '+msg,myId);
-  document.getElementById('mj-msg').value='';
-  notify('Message envoyé','var(--purple)');renderTab()
 };
 
 // ══ TAB CHAT ══
@@ -1128,12 +1119,8 @@ function rJournal(){
   if(!evs.length)return'<div class="panel" style="margin:12px;text-align:center;color:var(--gray)">Aucun événement de jeu</div>';
   return'<div style="padding:12px"><div class="card"><div class="ct">📜 Journal</div>'
     +evs.map(e=>'<div class="ev '+e.type+'"><div>'+e.text+'</div><div class="ev-time">'+fmtTs(e.ts)+'</div></div>').join('')+'</div>'
-    +(isAdmin()?'<div class="card" style="border-color:var(--purple)"><div class="ct">👑 MJ — Narration</div>'
-      +'<textarea id="mj-msg2" class="inp" placeholder="Décris un événement, une ambiance..."></textarea>'
-      +'<button class="btn btn-purple" onclick="sendMJMsg2()">📜 Publier</button></div>':'')
     +'</div>'
 }
-window.sendMJMsg2=function(){const msg=document.getElementById('mj-msg2')?.value?.trim();if(!msg||msg.length<2){notify('Message vide','var(--red)');return}addEv('mj','👑 MJ : '+msg,myId);document.getElementById('mj-msg2').value='';notify('Message publié','var(--purple)');renderTab()};
 
 // ══ NUMPAD ══
 let _npVal='',_npMax=6,_npDone=null;
