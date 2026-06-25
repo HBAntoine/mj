@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>MJ — 100 Cartes QR</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #eee; }
+
+/* ── ÉCRAN DE CHARGEMENT ── */
+#loader {
+  position: fixed; inset: 0; background: #0a0a1a; z-index: 999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+}
+#loader h1 { font-size: 20px; color: #ffe066; letter-spacing: 4px; text-transform: uppercase; }
+#progress-bar { width: 240px; height: 8px; background: #2a2a4a; border-radius: 4px; overflow: hidden; }
+#progress-fill { height: 100%; background: linear-gradient(90deg,#ffe066,#a040f0); border-radius: 4px; width: 0; transition: width .3s; }
+#progress-txt { font-size: 11px; color: #888; }
+#btn-print {
+  display: none; padding: 12px 28px; background: #ffe066; color: #0a0a1a;
+  border: none; border-radius: 6px; font-size: 15px; font-weight: 800; cursor: pointer;
+  letter-spacing: 1px; margin-top: 8px;
+}
+#btn-print:hover { background: #ffd000; }
+
+/* ── HEADER NO-PRINT ── */
+.no-print {
+  text-align: center; padding: 20px 0 10px;
+}
+.no-print h1 { font-size: 18px; color: #ffe066; margin-bottom: 6px; }
+.no-print p { font-size: 12px; color: #888; margin-bottom: 14px; }
+.no-print button {
+  padding: 10px 24px; background: #ffe066; color: #0a0a1a;
+  border: none; border-radius: 6px; font-size: 14px; font-weight: 800; cursor: pointer;
+}
+
+/* ── PAGES ── */
+.page {
+  width: 210mm;
+  height: 297mm;
+  background: white;
+  display: grid;
+  grid-template-columns: repeat(3, 63mm);
+  grid-template-rows: repeat(3, 88mm);
+  justify-content: center;
+  align-content: center;
+  margin: 12px auto;
+  box-shadow: 0 4px 24px rgba(0,0,0,.5);
+}
+
+/* ── CARTE ── */
+.card {
+  width: 63mm;
+  height: 88mm;
+  padding: 1.5mm;
+  position: relative;
+  /* trait de coupe */
+  outline: 0.3mm dashed #ccc;
+}
+
+.card-inner {
+  width: 100%;
+  height: 100%;
+  border: 0.8mm solid #1a0a3a;
+  border-radius: 2.5mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3mm 2mm 2.5mm;
+  background: white;
+  position: relative;
+  overflow: hidden;
+}
+
+/* filigrane diagonal */
+.card-inner::after {
+  content: 'MJ';
+  position: absolute;
+  font-size: 52px;
+  font-weight: 900;
+  color: rgba(26,10,58,.04);
+  transform: rotate(-30deg);
+  pointer-events: none;
+  letter-spacing: -2px;
+  top: 18mm; left: 3mm;
+}
+
+/* bande déco haut */
+.card-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3mm;
+  padding-bottom: 2mm;
+  border-bottom: 0.3mm solid #ffe066;
+}
+.card-logo {
+  font-size: 5px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #1a0a3a;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.card-deco { font-size: 7px; color: #ffe066; }
+
+/* QR */
+.card-qr {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1mm 0;
+}
+.card-qr img {
+  width: 38mm;
+  height: 38mm;
+  display: block;
+}
+
+/* ID + footer */
+.card-footer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1mm;
+  padding-top: 2mm;
+  border-top: 0.3mm solid #ffe066;
+}
+.card-id {
+  font-size: 10px;
+  font-weight: 900;
+  color: #1a0a3a;
+  letter-spacing: 2px;
+}
+.card-sub {
+  font-size: 4.5px;
+  color: #999;
+  text-align: center;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+/* coins décoratifs */
+.corner { position: absolute; font-size: 5px; color: #c8a020; line-height: 1; }
+.corner.tl { top: 2.5mm; left: 2.5mm; }
+.corner.tr { top: 2.5mm; right: 2.5mm; }
+.corner.bl { bottom: 2.5mm; left: 2.5mm; }
+.corner.br { bottom: 2.5mm; right: 2.5mm; }
+
+/* ── PRINT ── */
+@page { size: A4; margin: 0; }
+
+@media print {
+  body { background: none; }
+  .no-print, #loader { display: none !important; }
+  .page {
+    margin: 0;
+    box-shadow: none;
+    page-break-after: always;
+    break-after: page;
+  }
+  .page:last-child { page-break-after: avoid; break-after: avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loader -->
+<div id="loader">
+  <h1>⚔️ Maître du Jeu</h1>
+  <div style="font-size:12px;color:#aaa;margin-bottom:4px">Chargement des QR codes…</div>
+  <div id="progress-bar"><div id="progress-fill"></div></div>
+  <div id="progress-txt">0 / 100</div>
+  <button id="btn-print" onclick="window.print()">🖨️ Imprimer / Exporter PDF</button>
+  <div id="loader-note" style="font-size:10px;color:#666;max-width:280px;text-align:center;display:none">
+    Attends que tous les QR soient chargés avant d'imprimer.<br>
+    Dans le dialogue d'impression, choisis <b>"Enregistrer en PDF"</b>.
+  </div>
+</div>
+
+<div class="no-print">
+  <h1>⚔️ MJ — 100 Cartes QR</h1>
+  <p>Format carte de jeu standard 63×88mm · A4 · 9 cartes/page · 12 pages</p>
+  <button onclick="window.print()">🖨️ Imprimer / Exporter PDF</button>
+</div>
+
+<div id="cards"></div>
+
+<script>
+const APP_URL = 'https://hbantoine.github.io/mj/';
+const TOTAL = 100;
+const PER_PAGE = 9;
+
+let loaded = 0;
+
+function pad(n) { return n.toString().padStart(2, '0'); }
+function updateProgress() {
+  loaded++;
+  const pct = Math.round(loaded / TOTAL * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-txt').textContent = loaded + ' / ' + TOTAL;
+  if (loaded >= TOTAL) {
+    document.getElementById('btn-print').style.display = 'block';
+    document.getElementById('loader-note').style.display = 'block';
+    document.getElementById('progress-txt').textContent = '✅ Prêt à imprimer !';
+    document.getElementById('progress-txt').style.color = '#4cde80';
+  }
+}
+
+const container = document.getElementById('cards');
+let pageDiv = null;
+
+for (let i = 1; i <= TOTAL; i++) {
+  if ((i - 1) % PER_PAGE === 0) {
+    pageDiv = document.createElement('div');
+    pageDiv.className = 'page';
+    container.appendChild(pageDiv);
+  }
+
+  const cid = 'C' + pad(i);
+  const url = APP_URL + '#qr:card:' + cid;
+  // QR blanc avec module sombre, pas de marge
+  const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=4&color=1a0a3a&bgcolor=ffffff&data=' + encodeURIComponent(url);
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML =
+    '<div class="card-inner">' +
+      '<span class="corner tl">✦</span>' +
+      '<span class="corner tr">✦</span>' +
+      '<span class="corner bl">✦</span>' +
+      '<span class="corner br">✦</span>' +
+      '<div class="card-header">' +
+        '<span class="card-deco">⚔</span>' +
+        '<span class="card-logo">Maître du Jeu</span>' +
+        '<span class="card-deco">⚔</span>' +
+      '</div>' +
+      '<div class="card-qr"><img src="' + qrUrl + '" width="150" height="150" alt="' + cid + '"></div>' +
+      '<div class="card-footer">' +
+        '<div class="card-id">' + cid + '</div>' +
+        '<div class="card-sub">Scanner avec l\'app</div>' +
+      '</div>' +
+    '</div>';
+
+  const img = card.querySelector('img');
+  img.addEventListener('load', updateProgress);
+  img.addEventListener('error', updateProgress);
+
+  pageDiv.appendChild(card);
+}
+</script>
+</body>
+</html>
