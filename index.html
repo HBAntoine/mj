@@ -65,6 +65,8 @@ html,body{height:100%;background:var(--bg);color:var(--white);font-family:'Nunit
 @keyframes glow1{0%,100%{filter:drop-shadow(0 4px 8px rgba(64,128,240,.4))}50%{filter:drop-shadow(0 4px 16px rgba(64,128,240,.8))}}
 @keyframes glow2{0%,100%{filter:drop-shadow(0 4px 10px rgba(160,64,240,.5))}50%{filter:drop-shadow(0 4px 20px rgba(160,64,240,.9))}}
 @keyframes glow3{0%,100%{filter:drop-shadow(0 4px 12px rgba(240,192,64,.6))}50%{filter:drop-shadow(0 6px 24px rgba(240,192,64,1))}}
+@keyframes levelup{0%{transform:scale(1) translateY(0);filter:brightness(1)}25%{transform:scale(1.4) translateY(-20px);filter:brightness(3) drop-shadow(0 0 24px #ffe066)}50%{transform:scale(1.2) translateY(-10px);filter:brightness(2) drop-shadow(0 0 16px #a040f0)}75%{transform:scale(1.3) translateY(-15px);filter:brightness(2.5) drop-shadow(0 0 20px #ffe066)}100%{transform:scale(1) translateY(0);filter:brightness(1)}}
+.hero-sprite.levelup-anim{animation:levelup 1.2s ease-in-out forwards!important}
 
 /* Character info */
 .hero-name{font-family:'Press Start 2P';font-size:10px;color:var(--gold);text-align:center;margin-bottom:4px}
@@ -262,7 +264,7 @@ const XP_SKILL=[8,20,40];
 const RESULT_LABELS={critical_fail:'💀 Échec Critique',fail:'✗ Échec',success:'✓ Succès',strong_success:'★ Succès Fort',critical:'⚡ Succès Critique'};
 const DEF={
   game:{status:'lobby',objectZone:null,objectHolder:null,timerEnd:null,startedAt:null,winner:null,winnerMsg:null},
-  config:{timerMinutes:30,activeZones:Object.keys(ZONES),cooldownRatio:0.12,gameCode:null,gameId:null},
+  config:{timerMinutes:30,cooldownRatio:0.12,gameCode:null,gameId:null},
   players:{},events:[],zones:{}
 };
 
@@ -276,7 +278,9 @@ function pid(){let id=localStorage.getItem('mj_pid');if(!id){id='p'+Math.random(
 function getPin(){return localStorage.getItem('mj_pin')||null}
 function savePin(p){localStorage.setItem('mj_pin',p);myPin=p}
 function isAdmin(){return ME&&ME.isAdmin===true}
-function stadeOf(xp){return xp>=600?3:xp>=300?2:xp>=100?1:0}
+function stadeOf(xp){return xp>=XP_STADE[3]?3:xp>=XP_STADE[2]?2:xp>=XP_STADE[1]?1:0}
+function gZ(zid){const zl=DATA?.config?.zones||ZONES;return zid?zl[zid]:zl} // zones depuis Firebase ou défaut
+function gZL(){return DATA?.config?.zones||ZONES}  // liste complète
 function playerTitle(p){return(TITLES[p.classe]||TITLES.Guerrier)[stadeOf(p.xp||0)]}
 function genCode(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from({length:4},()=>c[Math.floor(Math.random()*c.length)]).join('')}
 function fmtTs(ts){if(!ts)return'';const d=new Date(ts);return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
@@ -469,19 +473,22 @@ function renderWait(){
     +(p.isAdmin?'<span class="badge badge-admin">👑</span>':'')
     +(isAdmin()&&pid2!==myId?'<button style="background:var(--red);border:none;border-radius:3px;color:#fff;font-size:11px;padding:3px 8px;cursor:pointer" onclick="kickPlayer(\''+pid2+'\')">✕</button>':'')
     +'</div></div>';});
+  // Bouton self-assign carte joueur (pour tous)
+  if(ME&&!isAdmin()){const myCard=getMyCard();
+    h+='<div style="margin-top:16px;padding:12px;background:var(--panel);border:1px solid var(--border);border-radius:8px">'
+      +(myCard?'<div style="font-size:12px;color:var(--green)">✅ Carte joueur liée : <b>'+myCard+'</b></div>'
+        +'<button class="btn btn-gray btn-sm" style="margin-top:8px" onclick="scanMyCard()">Changer ma carte</button>'
+        :'<div style="font-size:12px;color:var(--gray);margin-bottom:8px">Scan ta carte joueur pour être reconnu en jeu</div>'
+        +'<button class="btn btn-blue" onclick="scanMyCard()">📱 Scanner ma carte joueur</button>')
+      +'</div>';
+  }
   if(isAdmin()){
-    const allZ=Object.keys(ZONES),activeZ=DATA.config?.activeZones||allZ;
     h+='<div style="margin-top:20px">'
       +'<label style="font-size:12px;color:var(--gray)">Durée (minutes)</label>'
       +'<input id="tl" type="number" class="inp" value="'+timer+'" min="1" max="180" style="margin:8px 0">'
-      +'<div style="margin-bottom:12px"><div style="font-size:12px;color:var(--gray);margin-bottom:8px">Zones actives</div>'
-      +'<div style="display:flex;flex-wrap:wrap;gap:6px">'
-      +allZ.map(zid=>{const z=ZONES[zid],on=activeZ.includes(zid)||activeZ[zid];
-        return'<label style="display:flex;align-items:center;gap:4px;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:4px 10px;cursor:pointer;font-size:12px">'
-          +'<input type="checkbox" id="zchk-'+zid+'"'+(on?' checked':'')+' style="accent-color:var(--gold)">'+z.icon+' '+z.name+'</label>';}).join('')
-      +'</div></div>'
       +'<button class="btn btn-gold" onclick="adminStart()">⚔️ Lancer la partie</button>'
-      +'<button class="btn btn-blue" style="margin-top:8px" onclick="showQRCodes()">📱 Générer les QR codes</button>'
+      +'<button class="btn btn-purple" style="margin-top:8px" onclick="showZoneEditor()">🗺️ Gérer les zones</button>'
+      +'<button class="btn btn-blue" style="margin-top:8px" onclick="showCardDeck()">📱 Deck de cartes QR</button>'
       +'<button class="btn btn-red" style="margin-top:8px" onclick="confirmDelete()">🗑️ Supprimer la partie</button></div>';
   }
   else h+='<div style="text-align:center;font-size:12px;color:var(--gray);margin-top:20px">En attente du Maître du Jeu...</div>';
@@ -492,64 +499,161 @@ window.kickPlayer=async function(pid2){const p=DATA.players[pid2];if(!p)return;a
 window.adminStart=async function(){
   const inp=document.getElementById('tl')||document.getElementById('adm-t');
   const t=parseInt(inp?.value||30);
-  // Lire les zones cochées (si checkboxes présentes)
-  const allZ=Object.keys(ZONES);
-  const checked=allZ.filter(z=>{const cb=document.getElementById('zchk-'+z);return cb?cb.checked:true});
-  const zz=checked.length?checked:allZ;
+  const zz=Object.keys(gZL());
   const rz=zz[Math.floor(Math.random()*zz.length)];
-  await fbUpd('/config',{timerMinutes:t,activeZones:zz});
+  await fbUpd('/config',{timerMinutes:t});
   await fbUpd('/game',{status:'playing',objectZone:rz,objectHolder:null,timerEnd:Date.now()+t*60000,startedAt:Date.now()});
-  addEv('mj','⚔️ La quête commence ! Durée : '+t+' min. L\'objet a été caché...',null);
+  addEv('mj','⚔️ La quête commence ! Durée : '+t+' min.',null);
   notify('Partie lancée !','var(--green)')
 };
 
-// ══ QR CODES ══
-const APP_URL='https://hbantoine.github.io/mj/';
-function qrImg(data,size){return'<img src="https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&data='+encodeURIComponent(data)+'" width="'+size+'" height="'+size+'" style="border-radius:6px;display:block">'}
-window.showQRCodes=function(){
-  const ps=Object.entries(DATA.players||{});
-  const zones=DATA.config?.activeZones||Object.keys(ZONES);
-  let h='<div class="ct">📱 QR Codes</div>'
-    +'<div style="font-size:11px;color:var(--gray);margin-bottom:14px">Imprime ces QR codes. Colle les QR de zone dans les pièces. Donne leur QR aux joueurs.</div>'
-    +'<div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold);margin-bottom:8px">Zones</div>';
-  zones.forEach(zid=>{
-    const z=ZONES[zid],url=APP_URL+'#qr:zone:'+zid;
-    h+='<div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px">'
-      +qrImg(url,72)
-      +'<div><div style="font-weight:800;font-size:13px">'+z.icon+' '+z.name+'</div>'
-      +'<div style="font-size:9px;color:var(--gray);word-break:break-all;margin-top:4px">'+url+'</div></div></div>';
+// ══ GESTION DES ZONES ══
+window.showZoneEditor=function(){
+  const zl=gZL();
+  const EMOJIS=['🏛️','🔥','🌿','🚗','💧','🍳','🛋️','🚪','🍺','📚','🎮','🏚️','⛺','🌲','🏠','🏰','🎪','🛖','🏟️','🌊'];
+  let h='<div class="ct">🗺️ Zones</div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-bottom:12px">Modifie ou ajoute des zones pour cette partie.</div>';
+  Object.entries(zl).forEach(([zid,z])=>{
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+      +'<input id="zi-'+zid+'" class="inp" style="width:44px;margin:0;text-align:center;padding:8px;font-size:18px" value="'+z.icon+'" maxlength="2">'
+      +'<input id="zn-'+zid+'" class="inp" style="flex:1;margin:0" value="'+z.name+'" maxlength="20">'
+      +'<button style="background:var(--red);border:none;border-radius:4px;color:#fff;font-size:13px;padding:8px 12px;cursor:pointer" onclick="deleteZone(\''+zid+'\')">✕</button>'
+      +'</div>';
   });
-  if(ps.length){
-    h+='<div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold);margin:12px 0 8px">Joueurs</div>';
-    ps.forEach(([pid2,p])=>{
-      const url=APP_URL+'#qr:player:'+pid2;
-      h+='<div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px">'
-        +qrImg(url,72)
-        +sImg(p.classe,p.genre,p.xp||0,52)
-        +'<div><div style="font-weight:800;font-size:13px">'+p.name+'</div>'
-        +'<div style="font-size:9px;color:var(--gray);word-break:break-all;margin-top:4px">'+url+'</div></div></div>';
-    });
-  }
-  h+='<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal()">Fermer</button>';
+  h+='<div id="new-zone-row" style="display:flex;align-items:center;gap:8px;margin-bottom:12px">'
+    +'<input id="new-zi" class="inp" style="width:44px;margin:0;text-align:center;padding:8px;font-size:18px" placeholder="🏠" maxlength="2">'
+    +'<input id="new-zn" class="inp" style="flex:1;margin:0" placeholder="Nouvelle zone..." maxlength="20">'
+    +'<button style="background:var(--green);border:none;border-radius:4px;color:#0a0a1a;font-size:13px;padding:8px 12px;cursor:pointer;font-weight:800" onclick="addZone()">+</button>'
+    +'</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">'
+    +EMOJIS.map(e=>'<button style="background:var(--panel);border:1px solid var(--border);border-radius:4px;font-size:18px;padding:4px 6px;cursor:pointer" onclick="document.getElementById(\'new-zi\').value=\''+e+'\'">'+e+'</button>').join('')
+    +'</div>'
+    +'<button class="btn btn-gold" onclick="saveZones()">💾 Enregistrer</button>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal()">Annuler</button>';
   showModal(h)
+};
+window.deleteZone=function(zid){document.querySelector('[id="zi-'+zid+'"]')?.closest('div')?.remove()};
+window.addZone=function(){
+  const icon=document.getElementById('new-zi')?.value?.trim()||'📍';
+  const name=document.getElementById('new-zn')?.value?.trim();
+  if(!name){notify('Entre un nom de zone','var(--red)');return}
+  const zid='z_'+Date.now();
+  const row=document.getElementById('new-zone-row');
+  const newDiv=document.createElement('div');
+  newDiv.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px';
+  newDiv.innerHTML='<input id="zi-'+zid+'" class="inp" style="width:44px;margin:0;text-align:center;padding:8px;font-size:18px" value="'+icon+'" maxlength="2">'
+    +'<input id="zn-'+zid+'" class="inp" style="flex:1;margin:0" value="'+name+'" maxlength="20">'
+    +'<button style="background:var(--red);border:none;border-radius:4px;color:#fff;font-size:13px;padding:8px 12px;cursor:pointer" onclick="deleteZone(\''+zid+'\')">✕</button>';
+  row.parentNode.insertBefore(newDiv,row);
+  document.getElementById('new-zi').value='';document.getElementById('new-zn').value='';
+};
+window.saveZones=async function(){
+  const zones={};
+  document.querySelectorAll('[id^="zi-"]').forEach(el=>{
+    const zid=el.id.slice(3);
+    const name=document.getElementById('zn-'+zid)?.value?.trim();
+    const icon=el.value?.trim()||'📍';
+    if(name)zones[zid]={name,icon};
+  });
+  if(!Object.keys(zones).length){notify('Au moins une zone requise','var(--red)');return}
+  await fbSet('/config/zones',zones);closeModal();notify('Zones sauvegardées !','var(--green)')
+};
+
+// ══ QR CARDS (deck pré-imprimé) ══
+const APP_URL='https://hbantoine.github.io/mj/';
+const CARD_IDS=Array.from({length:30},(_,i)=>'C'+(i+1).toString().padStart(2,'0'));
+function qrImg(data,size){return'<img src="https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&data='+encodeURIComponent(data)+'" width="'+size+'" height="'+size+'" style="border-radius:6px;display:block">'}
+
+// Récupérer la carte associée au joueur courant
+function getMyCard(){const m=DATA?.config?.cardMap||{};return Object.keys(m).find(c=>m[c]==='player:'+myId)||null}
+
+// ── DECK : vue admin pour imprimer une fois pour toutes ──
+window.showCardDeck=function(){
+  const cm=DATA?.config?.cardMap||{};
+  let h='<div class="ct">📱 Deck de cartes QR</div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-bottom:4px">30 cartes à imprimer <b>une seule fois</b>. Réutilisables à chaque partie.</div>'
+    +'<div style="font-size:11px;color:var(--orange);margin-bottom:14px">Cette partie : assigne les cartes aux zones et joueurs via le bouton ⚙️</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+  CARD_IDS.forEach(cid=>{
+    const assign=cm[cid],url=APP_URL+'#qr:card:'+cid;
+    const label=assign?assign.startsWith('zone:')?'🗺️ '+(gZ(assign.slice(5))?.name||assign.slice(5)):assign.startsWith('player:')?'👤 '+(DATA?.players?.[assign.slice(7)]?.name||'?'):'?':'';
+    h+='<div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center">'
+      +qrImg(url,80)
+      +'<div style="font-family:\'Press Start 2P\';font-size:7px;margin:6px 0 2px">'+cid+'</div>'
+      +(label?'<div style="font-size:9px;color:var(--gold)">'+label+'</div>':'<div style="font-size:9px;color:var(--gray)">Non assigné</div>')
+      +'<button style="background:var(--dim);border:none;border-radius:3px;color:var(--white);font-size:9px;padding:3px 6px;cursor:pointer;margin-top:4px" onclick="assignCard(\''+cid+'\')">⚙️</button>'
+      +'</div>';
+  });
+  h+='</div><button class="btn btn-gray" style="margin-top:12px" onclick="closeModal()">Fermer</button>';
+  showModal(h)
+};
+
+// ── Assigner une carte à une zone ou un joueur ──
+window.assignCard=function(cid){
+  const zones=Object.keys(gZL());
+  const ps=Object.entries(DATA.players||{});
+  let h='<div class="ct">⚙️ Assigner la carte '+cid+'</div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-bottom:12px">Ou scanne cette carte avec un tel dont l\'app est en attente…</div>'
+    +'<div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold);margin-bottom:6px">Zones</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:10px">'
+    +zones.map(zid=>{const z=gZ(zid)||{name:zid,icon:'📍'};return'<button class="btn btn-gray btn-sm" onclick="doAssignCard(\''+cid+'\',\'zone:'+zid+'\')">'+z.icon+' '+z.name+'</button>';}).join('')
+    +'</div>'
+    +(ps.length?'<div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold);margin-bottom:6px">Joueurs</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px">'
+      +ps.map(([pid2,p])=>'<button class="btn btn-gray btn-sm" onclick="doAssignCard(\''+cid+'\',\'player:'+pid2+'\')">'+p.name+'</button>').join('')
+      +'</div>':'')
+    +'<button class="btn btn-red" style="margin-top:10px" onclick="doAssignCard(\''+cid+'\',null)">🗑️ Retirer assignation</button>'
+    +'<button class="btn btn-gray" style="margin-top:8px" onclick="showCardDeck()">← Retour</button>';
+  showModal(h)
+};
+window.doAssignCard=async function(cid,target){
+  if(target)await fbSet('/config/cardMap/'+cid,target);
+  else await DB.ref('/config/cardMap/'+cid).remove();
+  notify(target?'Carte '+cid+' assignée':'Carte effacée','var(--green)');
+  showCardDeck()
+};
+
+// ── Joueur : scan sa propre carte joueur ──
+window.scanMyCard=function(){
+  localStorage.setItem('mj_pending_assign',JSON.stringify({target:'player:'+myId,name:ME?.name||'moi'}));
+  showModal('<div style="text-align:center;padding:12px">'
+    +'<div style="font-size:48px;margin-bottom:12px">📱</div>'
+    +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gold);margin-bottom:8px">Scanne ta carte</div>'
+    +'<div style="font-size:12px;color:var(--gray)">Ouvre l\'appareil photo de ton téléphone et scanne la carte QR qu\'on t\'a donnée.</div></div>'
+    +'<button class="btn btn-gray" style="margin-top:12px" onclick="closeModal();localStorage.removeItem(\'mj_pending_assign\')">Annuler</button>')
 };
 
 // ══ SCAN QR (via hash URL) ══
 function handleHash(){
   const h=location.hash;
   if(!h.startsWith('#qr:'))return;
-  const parts=h.slice(4).split(':');
   location.hash='';
+  const parts=h.slice(4).split(':');
+  // Vérifier si quelqu'un attend une assignation (via localStorage partagé)
+  const pending=JSON.parse(localStorage.getItem('mj_pending_assign')||'null');
+  if(parts[0]==='card'&&pending){
+    localStorage.removeItem('mj_pending_assign');
+    const cid=parts[1];
+    fbSet('/config/cardMap/'+cid,pending.target).then(()=>{
+      notify('✅ Carte '+cid+' liée à '+pending.name,'var(--green)');
+      closeModal();renderTab()
+    });return
+  }
   if(!DATA||!ME){notify('Connecte-toi d\'abord','var(--orange)');return}
-  if(parts[0]==='zone'){
+  if(parts[0]==='card'){
+    const assign=DATA?.config?.cardMap?.[parts[1]];
+    if(!assign){notify('Carte non assignée — demande à l\'admin','var(--orange)');return}
+    const[type,ref]=assign.split(':');
+    if(type==='zone'){if(!gZ(ref)){notify('Zone inconnue','var(--red)');return}moveZone(ref)}
+    else if(type==='player'){if(ref===myId){notify('C\'est ta propre carte !','var(--gray)');return}onPlayer(ref)}
+  } else if(parts[0]==='zone'){
     const zid=parts[1];
-    if(!ZONES[zid]){notify('Zone inconnue','var(--red)');return}
-    moveZone(zid);notify('📍 '+ZONES[zid].name+' — QR validé !','var(--green)')
+    if(!gZ(zid)){notify('Zone inconnue','var(--red)');return}
+    moveZone(zid)
   } else if(parts[0]==='player'){
     const tid=parts[1];
-    if(tid===myId){notify('C\'est ton propre QR code !','var(--gray)');return}
-    const p=DATA.players?.[tid];
-    if(!p){notify('Joueur introuvable','var(--red)');return}
+    if(tid===myId){notify('C\'est ton propre QR !','var(--gray)');return}
+    const p=DATA.players?.[tid];if(!p){notify('Joueur introuvable','var(--red)');return}
     onPlayer(tid)
   }
 }
@@ -595,14 +699,14 @@ function rHero(){
   const xp=ME?.xp||0,s=stadeOf(xp);
   const nextXp=s<3?XP_STADE[s+1]:null;
   const pct=nextXp?Math.round((xp-XP_STADE[s])/(nextXp-XP_STADE[s])*100):100;
-  const myZone=ME?.zone,zName=myZone&&ZONES[myZone]?ZONES[myZone].name:null;
+  const myZone=ME?.zone,zName=myZone&&gZ(myZone)?.name||null;
 
   // Joueurs dans la même zone (excluant soi)
   const sameZone=myZone?Object.entries(DATA.players||{}).filter(([id,p])=>id!==myId&&p.zone===myZone):[];
 
   // Zone chip
   const zoneBlock='<div class="zone-chip" onclick="showZonePicker()">'
-    +'<div>'+(myZone?'<div style="font-size:10px;color:var(--gray)">Zone actuelle</div><div class="zone-name">'+ZONES[myZone].icon+' '+zName+'</div>':'<div class="zone-name" style="color:var(--gray)">📍 Aucune zone</div>')+'</div>'
+    +'<div>'+(myZone?'<div style="font-size:10px;color:var(--gray)">Zone actuelle</div><div class="zone-name">'+gZ(myZone)?.icon+' '+zName+'</div>':'<div class="zone-name" style="color:var(--gray)">📍 Aucune zone</div>')+'</div>'
     +'<div class="zone-chip-btn">Changer →</div></div>';
 
   // Sprite central (cliquable)
@@ -624,7 +728,7 @@ function rHero(){
 
   const actions='<div class="hero-actions">'
     +'<div class="action-row">'
-    +mkActionBtn('🔍','Fouiller',myZone?ZONES[myZone]?.name:'Choisir une zone',canFouille,fouilleCd,'doFouille()')
+    +mkActionBtn('🔍','Fouiller',myZone?gZ(myZone)?.name:'Choisir une zone',canFouille,fouilleCd,'doFouille()')
     +mkActionBtn('🤏','Voler',sameZone.length>0?sameZone.length+' joueur'+(sameZone.length>1?'s':''):myZone?'Seul ici':'Choisir zone',canSocial,null,'showTargets(\'vol\')')
     +'</div><div class="action-row">'
     +mkActionBtn('👁️','Espionner',sameZone.length>0?sameZone.length+' dispo':myZone?'Seul ici':'Choisir zone',canSocial,null,'showTargets(\'espionnage\')')
@@ -664,7 +768,7 @@ window.showActionSheet=function(){
   showModal('<div style="text-align:center;margin-bottom:12px">'
     +sImg(ME.classe,ME.genre,ME?.xp||0,80,'hero-sprite s'+stadeOf(ME?.xp||0))
     +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gold);margin-top:8px">'+ME.name+'</div>'
-    +'<div style="font-size:11px;color:var(--gray);margin-top:2px">'+playerTitle(ME)+' · '+(myZone&&ZONES[myZone]?'📍 '+ZONES[myZone].name:'Aucune zone')+'</div></div>'
+    +'<div style="font-size:11px;color:var(--gray);margin-top:2px">'+playerTitle(ME)+' · '+(myZone&&gZ(myZone)?'📍 '+gZ(myZone).name:'Aucune zone')+'</div></div>'
     +'<div style="display:grid;gap:8px">'
     +'<button class="btn btn-blue" '+(myZone&&canFouille?'onclick="doFouille()"':(myZone?'disabled':' onclick="showZonePicker()"'))+'>'
     +'🔍 Fouiller'+(myZone?'':(myZone?'':' (choisir une zone)'))+'</button>'
@@ -677,12 +781,12 @@ window.showActionSheet=function(){
 };
 
 window.showZonePicker=function(){
-  const zones=DATA.config?.activeZones||Object.keys(ZONES);
+  const zones=Object.keys(gZL());
   const codesActive=DATA.zones&&Object.keys(DATA.zones).some(z=>DATA.zones[z]?.code);
   showModal('<div class="ct">📍 Se déplacer</div>'
     +(codesActive?'<div style="font-size:11px;color:var(--orange);text-align:center;margin-bottom:10px">🔒 Codes de zone actifs — entre dans la pièce pour trouver le code</div>':'')
     +'<div class="zg">'+zones.map(zid=>{
-      const z=ZONES[zid],here=Object.values(DATA.players||{}).filter(p=>p.zone===zid),isMine=ME?.zone===zid;
+      const z=gZ(zid)||{name:zid,icon:'📍'},here=Object.values(DATA.players||{}).filter(p=>p.zone===zid),isMine=ME?.zone===zid;
       const hasCode=DATA.zones?.[zid]?.code;
       return'<div class="zc'+(isMine?' mine':'')+'" onclick="selectZoneToMove(\''+zid+'\')">'
         +'<div style="font-size:24px">'+z.icon+'</div>'
@@ -693,7 +797,7 @@ window.showZonePicker=function(){
     +'<button class="btn btn-gray" style="margin-top:12px" onclick="closeModal()">Annuler</button>')
 };
 window.selectZoneToMove=function(zid){
-  const z=ZONES[zid],code=DATA.zones?.[zid]?.code;
+  const z=gZ(zid)||{name:zid,icon:'📍'},code=DATA.zones?.[zid]?.code;
   if(!code||isAdmin()){moveZone(zid);return}
   closeModal();
   showModal('<div style="text-align:center;margin-bottom:14px">'
@@ -713,15 +817,15 @@ window.submitZoneCode=function(zid){
   if(val===expected){moveZone(zid)}
   else{inp.value='';inp.style.borderColor='var(--red)';inp.placeholder='Code incorrect';setTimeout(()=>{inp.style.borderColor='';inp.placeholder='???'},1500)}
 };
-window.moveZone=async function(zid){closeModal();await fbUpd('/players/'+myId,{zone:zid});addEv('info',ME.name+' se déplace vers '+ZONES[zid].name,myId);notify('📍 '+ZONES[zid].name,'var(--blue)');renderTab()};
+window.moveZone=async function(zid){closeModal();await fbUpd('/players/'+myId,{zone:zid});addEv('info',ME.name+' se déplace vers '+gZ(zid)?.name,myId);notify('📍 '+gZ(zid)?.name,'var(--blue)');renderTab()};
 
 // Admin : gérer les codes de zone
 window.showZoneCodes=function(){
-  const zones=DATA.config?.activeZones||Object.keys(ZONES);
+  const zones=Object.keys(gZL());
   showModal('<div class="ct">🔑 Codes de zone</div>'
     +'<div style="font-size:11px;color:var(--gray);margin-bottom:12px">Définis un code secret pour chaque zone. Les joueurs devront le trouver physiquement sur place.</div>'
     +zones.map(zid=>{
-      const z=ZONES[zid],cur=DATA.zones?.[zid]?.code||'';
+      const z=gZ(zid)||{name:zid,icon:'📍'},cur=DATA.zones?.[zid]?.code||'';
       return'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
         +'<span style="font-size:18px;flex-shrink:0">'+z.icon+'</span>'
         +'<span style="flex:1;font-size:12px;font-weight:700">'+z.name+'</span>'
@@ -732,7 +836,7 @@ window.showZoneCodes=function(){
     +'<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal()">Fermer</button>')
 };
 window.saveZoneCodes=async function(){
-  const zones=DATA.config?.activeZones||Object.keys(ZONES);
+  const zones=Object.keys(gZL());
   const upd={};
   zones.forEach(zid=>{const v=document.getElementById('zc-'+zid)?.value?.trim().toUpperCase();if(v)upd[zid]={code:v};else upd[zid]=null;});
   await fbSet('/zones',upd);closeModal();notify('Codes enregistrés !','var(--green)')
@@ -769,9 +873,9 @@ window.doFouille=async function(){closeModal();await searchZone(ME?.zone)};
 
 // ══ TAB CARTE ══
 function rCarte(){
-  const zones=DATA.config?.activeZones||Object.keys(ZONES);
+  const zones=Object.keys(gZL());
   const cards=zones.map(zid=>{
-    const z=ZONES[zid];
+    const z=gZ(zid)||{name:zid,icon:'📍'};
     const here=Object.values(DATA.players||{}).filter(p=>p.zone===zid);
     const isMine=ME?.zone===zid;
     return'<div class="zc'+(isMine?' mine':'')+'" onclick="onZoneCarte(\''+zid+'\')">'
@@ -784,7 +888,7 @@ function rCarte(){
 }
 
 window.onZoneCarte=function(zid){
-  const z=ZONES[zid],here=Object.values(DATA.players||{}).filter(p=>p.zone===zid),isMine=ME?.zone===zid;
+  const z=gZ(zid)||{name:zid,icon:'📍'},here=Object.values(DATA.players||{}).filter(p=>p.zone===zid),isMine=ME?.zone===zid;
   const canFouille=isMine&&cdOk(zid+'_fouille');
   showModal('<div style="text-align:center;margin-bottom:14px">'
     +'<div style="font-size:36px">'+z.icon+'</div>'
@@ -815,7 +919,7 @@ function rJoueurs(){
         +sImg(p.classe,p.genre,p.xp||0,64)
         +'<div class="pr-info"><div class="pr-name">'+p.name+(id===myId?' <span style="color:var(--gray);font-size:10px">(moi)</span>':'')+'</div>'
         +'<div class="pr-sub">'+playerTitle(p)+' · '+p.classe+'</div>'
-        +(p.zone&&ZONES[p.zone]?'<div style="font-size:10px;color:'+(sameZ?'var(--blue)':'var(--gray)')+';margin-top:2px">'+(sameZ?'📍 Même zone — ':'')+ZONES[p.zone].name+'</div>':'')
+        +(p.zone&&gZ(p.zone)?'<div style="font-size:10px;color:'+(sameZ?'var(--blue)':'var(--gray)')+';margin-top:2px">'+(sameZ?'📍 Même zone — ':'')+gZ(p.zone).name+'</div>':'')
         +'</div><div class="pr-right">'
         +(p.hasObject?'<span class="badge badge-obj">🗝️</span>':'')
         +(p.isAdmin?'<span class="badge badge-admin">👑</span>':'')
@@ -839,7 +943,7 @@ window.onPlayer=function(tid){
     +sImg(p.classe,p.genre,p.xp||0,96,'hero-sprite s'+stadeOf(p.xp||0))
     +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gold);margin-top:10px">'+p.name+'</div>'
     +'<div style="font-size:12px;color:var(--gray);margin-top:4px">'+playerTitle(p)+' — '+p.classe+'</div>'
-    +(p.zone&&ZONES[p.zone]?'<div style="font-size:11px;color:'+(sameZone?'var(--blue)':'var(--gray)')+';margin-top:4px">📍 '+ZONES[p.zone].name+(sameZone?' (même zone !)':'')+'</div>':'')
+    +(p.zone&&gZ(p.zone)?'<div style="font-size:11px;color:'+(sameZone?'var(--blue)':'var(--gray)')+';margin-top:4px">📍 '+gZ(p.zone).name+(sameZone?' (même zone !)':'')+'</div>':'')
     +'</div>'
     +(sameZone&&!onCd?'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
       +'<button class="btn btn-red btn-sm" onclick="execAction(\'vol\',\''+tid+'\')">🤏 Voler</button>'
@@ -995,7 +1099,7 @@ async function applyXP(skillKey,xpAmt){
   const curSkillXp=ME?.skillXp?.[skillKey]||0;
   let newSkillXp=curSkillXp+xpAmt,newSkillLvl=curSkillLvl;
   if(newSkillLvl<3&&newSkillXp>=XP_SKILL[newSkillLvl]){newSkillXp-=XP_SKILL[newSkillLvl];newSkillLvl++;notify('⭐ '+SKILLS[skillKey].label+' niveau '+newSkillLvl+' !','var(--gold)')}
-  if(newS>oldS)notify('✨ '+STADES[newS]+' ! '+playerTitle({...ME,xp:newXp}),'var(--purple)');
+  if(newS>oldS){notify('✨ '+STADES[newS]+' ! '+playerTitle({...ME,xp:newXp}),'var(--purple)');setTimeout(()=>{const el=document.querySelector('.hero-sprite');if(el){el.classList.add('levelup-anim');setTimeout(()=>el.classList.remove('levelup-anim'),1300)}},200)}
   await fbUpd('/players/'+myId,{xp:newXp,['skills/'+skillKey]:newSkillLvl,['skillXp/'+skillKey]:newSkillXp})
 }
 async function setPity(action,ok){await fbSet('/players/'+myId+'/pityCounts/'+action,ok?0:(ME?.pityCounts?.[action]||0)+1)}
@@ -1013,7 +1117,7 @@ async function searchZone(zid){
   let txt='',gold=0;
   if(roll.result.includes('fail')){
     txt=roll.result==='critical_fail'?'Vous faites du bruit et attirez l\'attention !':'Rien d\'intéressant ici.';
-    addEv('fail',ME.name+' fouille '+ZONES[zid].name+' sans succès',myId);
+    addEv('fail',ME.name+' fouille '+gZ(zid)?.name+' sans succès',myId);
   } else {
     const mult=sl>=2?2:1;
     gold=Math.floor((5+Math.random()*25)*mult*(roll.result==='critical'?2:roll.result==='strong_success'?1.5:1));
@@ -1022,12 +1126,12 @@ async function searchZone(zid){
         gold+=50;txt='🗝️ Vous trouvez L\'OBJET et '+gold+' 🪙 !';
         await fbUpd('/game',{objectHolder:myId,objectZone:null});
         await fbUpd('/players/'+myId,{hasObject:true,gold:(ME.gold||0)+gold});
-        addEv('critical','🗝️ '+ME.name+' trouve L\'OBJET dans '+ZONES[zid].name+' !',myId);
+        addEv('critical','🗝️ '+ME.name+' trouve L\'OBJET dans '+gZ(zid)?.name+' !',myId);
         showDice(roll,txt);return;
       } else txt='Une présence mystérieuse... quelque chose est caché ici. +'+gold+' 🪙';
     } else txt='+'+gold+' 🪙 trouvés.';
     await fbUpd('/players/'+myId,{gold:(ME.gold||0)+gold});
-    addEv('success',ME.name+' fouille '+ZONES[zid].name,myId);
+    addEv('success',ME.name+' fouille '+gZ(zid)?.name,myId);
   }
   showDice(roll,txt)
 }
@@ -1069,10 +1173,10 @@ async function spyPlayer(tid){
   await setCd(tid);await applyXP('espionnage',roll.xp);await setPity('espionnage',!roll.result.includes('fail'));
   addEv('info',ME.name+' observe '+tgt.name,myId);
   if(roll.result.includes('fail')){
-    const fz=Object.keys(ZONES)[Math.floor(Math.random()*10)];
-    showDice(roll,'Informations peu fiables...\nZone signalée : '+ZONES[fz].name+(sl>=1?' (peut-être)':' (non vérifié)'));return;
+    const _fzl=Object.keys(gZL());const fz=_fzl[Math.floor(Math.random()*_fzl.length)];
+    showDice(roll,'Informations peu fiables...\nZone signalée : '+gZ(fz)?.name+(sl>=1?' (peut-être)':' (non vérifié)'));return;
   }
-  const lines=['Zone : '+(tgt.zone&&ZONES[tgt.zone]?ZONES[tgt.zone].name:'Inconnue')];
+  const lines=['Zone : '+(tgt.zone&&gZ(tgt.zone)?gZ(tgt.zone)?.name:'Inconnue')];
   if(sl>=2||roll.result==='strong_success'||roll.result==='critical')lines.push('Or : '+( tgt.gold||0)+' 🪙');
   else lines.push('Or : ~'+Math.round((tgt.gold||0)/20)*20+' 🪙 (approx.)');
   if(sl>=3||roll.result==='critical')lines.push('Objet : '+(tgt.hasObject?'✅ EN SA POSSESSION':'❌ Non'));
@@ -1162,7 +1266,7 @@ window.doReset=async function(){
 window.adminStart=async function(){
   const inp=document.getElementById('tl')||document.getElementById('adm-t');
   const t=parseInt(inp?.value||30);
-  const zz=DATA.config?.activeZones||Object.keys(ZONES);
+  const zz=Object.keys(gZL());
   const rz=zz[Math.floor(Math.random()*zz.length)];
   await fbUpd('/config',{timerMinutes:t});
   await fbUpd('/game',{status:'playing',objectZone:rz,objectHolder:null,timerEnd:Date.now()+t*60000,startedAt:Date.now()});
