@@ -292,6 +292,114 @@ let DB,DATA=null,ME=null,myId,myPin;
 let curTab='hero',timerIv=null,notifT=null,creating=false;
 let flow={mode:null,step:1,data:{name:'',classe:'',genre:'',pin:'',code:''}};
 
+// ══ DEBOUNCE RENDER ══
+// Évite les re-renders en rafale quand plusieurs nœuds Firebase changent quasi-simultanément.
+// _renderPending distingue "hero-partial" (mise à jour chirurgicale) de "full" (rebuild complet du tab).
+let _renderTimer=null,_renderPending=null;
+function scheduleRender(type){
+  // 'route' = changement d'écran (lobby→jeu, fin…) — bypass du debounce
+  if(type==='route'){clearTimeout(_renderTimer);_renderTimer=null;_renderPending=null;render();return}
+  // Priorité : full > hero-partial
+  if(_renderPending!=='full')_renderPending=(type==='full')?'full':'hero-partial';
+  clearTimeout(_renderTimer);
+  _renderTimer=setTimeout(()=>{
+    const p=_renderPending;_renderTimer=null;_renderPending=null;
+    if(!DATA||creating)return;
+    const gameStatus=DATA.game?.status;
+    if(!gameStatus||gameStatus==='ended'||!DATA.config?.gameCode||!ME){render();return}
+    if(gameStatus==='lobby'){renderWait();return}
+    // Partie en cours — mise à jour chirurgicale si possible
+    if(p==='hero-partial'&&curTab==='hero'){
+      _heroPartialUpdate();
+    } else {
+      renderTab();
+    }
+  },150);
+}
+
+// Mise à jour chirurgicale du tab héros : ne touche que les éléments qui changent fréquemment.
+// Préserve les animations CSS (.levelup-anim, float, glow) sur .hero-sprite.
+function _heroPartialUpdate(){
+  const sc=document.getElementById('sc');
+  // Si le tab héros n'est pas encore rendu, faire un render complet
+  if(!sc||!sc.querySelector('.hero-screen')){renderTab();return}
+
+  const xp=ME?.xp||0,s=stadeOf(xp);
+  const nextXp=s<3?XP_STADE[s+1]:null;
+  const pct=nextXp?Math.round((xp-XP_STADE[s])/(nextXp-XP_STADE[s])*100):100;
+  const myZone=ME?.zone;
+
+  // 1. XP bar + label
+  const fill=sc.querySelector('.xp-fill');
+  if(fill)fill.style.width=pct+'%';
+  const xpLabel=sc.querySelector('.xp-label');
+  if(xpLabel)xpLabel.textContent=xp+(nextXp?' / '+nextXp+' XP':'  ✨ Maîtrise absolue')+' · '+STADES[s];
+
+  // 2. Zone chip
+  const zoneChip=sc.querySelector('.zone-chip');
+  if(zoneChip){
+    const zName=myZone&&gZ(myZone)?.name||null;
+    const newHtml=(myZone
+      ?'<div><div style="font-size:10px;color:var(--gray)">Zone actuelle</div><div class="zone-name">'+gZ(myZone)?.icon+' '+zName+'</div></div>'
+      :'<div><div class="zone-name" style="color:var(--gray)">📍 Aucune zone</div></div>')
+      +'<div class="zone-chip-btn">📷 Scanner</div>';
+    if(zoneChip.innerHTML!==newHtml)zoneChip.innerHTML=newHtml;
+  }
+
+  // 3. Sprite : ajuste uniquement la classe de stade (s0–s3) sans remplacer le <img>
+  //    → préserve levelup-anim et les animations CSS en cours
+  const sprite=sc.querySelector('.hero-sprite');
+  if(sprite){
+    ['s0','s1','s2','s3'].forEach(c=>{if(c!=='s'+s)sprite.classList.remove(c)});
+    sprite.classList.add('s'+s);
+  }
+
+  // 4. Boutons d'actions (cooldowns, disponibilité)
+  const actWrap=sc.querySelector('.hero-actions');
+  if(actWrap){
+    const sameZone=myZone?Object.entries(DATA.players||{}).filter(([id,p])=>id!==myId&&p.zone===myZone):[];
+    const canSocial=myZone&&sameZone.length>0;
+    const canFouille=myZone&&cdOk(myZone+'_fouille');
+    const fouilleCd=myZone&&!cdOk(myZone+'_fouille')?fmtMs(cdLeft(myZone+'_fouille')):null;
+    const newActions='<div class="action-row">'
+      +mkActionBtn('🔍','Fouiller',myZone?gZ(myZone)?.name:'Choisir une zone',canFouille,fouilleCd,'doFouille()')
+      +mkActionBtn('🤏','Voler',sameZone.length>0?sameZone.length+' joueur'+(sameZone.length>1?'s':''):myZone?'Seul ici':'Choisir zone',canSocial,null,'showTargets(\'vol\')')
+      +'</div><div class="action-row">'
+      +mkActionBtn('👁️','Espionner',sameZone.length>0?sameZone.length+' dispo':myZone?'Seul ici':'Choisir zone',canSocial,null,'showTargets(\'espionnage\')')
+      +mkActionBtn('💬','Parler',sameZone.length>0?sameZone.length+' dispo':myZone?'Seul ici':'Choisir zone',canSocial,null,'showTargets(\'parole\')')
+      +mkActionBtn('🤝','Négocier',sameZone.length>0?sameZone.length+' dispo':myZone?'Seul ici':'Choisir zone',canSocial,null,'showTargets(\'negociation\')')
+      +'</div>';
+    if(actWrap.innerHTML!==newActions)actWrap.innerHTML=newActions;
+  }
+
+  // 5. Zone players block
+  const sameZone2=myZone?Object.entries(DATA.players||{}).filter(([id,p])=>id!==myId&&p.zone===myZone):[];
+  const zp=sc.querySelector('.zone-players');
+  if(sameZone2.length>0){
+    const newZPHtml='<div class="zone-players-title">👤 Dans cette zone</div>'
+      +sameZone2.map(([id,p])=>'<div class="zone-player-row">'
+        +sImg(p.classe,p.genre,p.xp||0,36)
+        +'<div style="flex:1"><div style="font-weight:700;font-size:13px">'+p.name+'</div>'
+        +'<div style="font-size:10px;color:var(--gray)">'+playerTitle(p)+'</div></div>'
+        +'<button style="background:var(--panel);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:11px;padding:4px 8px;cursor:pointer" onclick="onPlayer(\''+id+'\')">→</button>'
+        +'</div>').join('');
+    if(zp){if(zp.innerHTML!==newZPHtml)zp.innerHTML=newZPHtml}
+    else{const wrap=document.createElement('div');wrap.className='zone-players';wrap.innerHTML=newZPHtml;sc.querySelector('.hero-screen')?.appendChild(wrap)}
+  } else {
+    if(zp)zp.remove();
+  }
+
+  // 6. Badge "Objet" dans le header
+  const ghdrRight=document.querySelector('.ghdr-right');
+  if(ghdrRight){
+    const badgeEl=ghdrRight.querySelector('.badge-obj');
+    if(ME?.hasObject&&!badgeEl){
+      const badge=document.createElement('span');badge.className='badge badge-obj';badge.textContent='🗝️ Objet';
+      ghdrRight.prepend(badge);
+    } else if(!ME?.hasObject&&badgeEl){badgeEl.remove()}
+  }
+}
+
 // ══ UTILS ══
 function pid(){let id=localStorage.getItem('mj_pid');if(!id){id='p'+Math.random().toString(36).slice(2,10);localStorage.setItem('mj_pid',id)}return id}
 function getPin(){return localStorage.getItem('mj_pin')||null}
@@ -328,25 +436,115 @@ function notify(msg,col){
 }
 
 // ══ FIREBASE ══
+// Garde une trace de l'écran courant pour détecter les changements de route
+let _lastGameStatus=null,_lastHasCode=false,_fbInitDone=false;
+
+function _checkRoute(){
+  // Retourne true si l'écran doit changer de type (lobby↔jeu, jeu→fin…)
+  // Faux pour le premier rendu : les listeners initiaux passent tous par le debounce.
+  const status=DATA?.game?.status||null;
+  const hasCode=!!(DATA?.config?.gameCode&&ME);
+  const routeChanged=_fbInitDone&&((status!==_lastGameStatus)||(hasCode!==_lastHasCode)||status==='ended');
+  _lastGameStatus=status;_lastHasCode=hasCode;
+  return routeChanged;
+}
+
 function initFB(){
   firebase.initializeApp(FB_CFG);
   DB=firebase.database();myId=pid();myPin=getPin();
-  DB.ref('/').on('value',snap=>{
-    const v=snap.val();
-    if(!v){DB.ref('/').set(DEF);return}
+
+  // ── Listener racine minimal : détecte si la DB est vide (première init) ──
+  // Ne s'abonne qu'une fois avec 'once' pour éviter un listener global permanent.
+  DB.ref('/').once('value',snap=>{
+    if(!snap.val()){DB.ref('/').set(DEF)}
+    // Initialise DATA avec une structure minimale avant que les listeners ne tirent
+    if(!DATA)DATA=snap.val()||{...DEF};
+    if(!DATA.game)DATA.game={...DEF.game};
+    if(!DATA.config)DATA.config={...DEF.config};
+    if(!DATA.players)DATA.players={};
+    ME=DATA.players[myId]||null;
+    _setupGranularListeners();
+  },err=>{document.getElementById('app').innerHTML='<div style="padding:20px;color:#e04040;font-size:12px">Erreur DB : '+err.message+'</div>'});
+}
+
+function _setupGranularListeners(){
+  // Après le premier cycle de listeners (initial snapshot batch), activer la détection de route
+  // Le timeout > debounce (150ms) garantit que le premier render initial est déjà passé
+  setTimeout(()=>{_fbInitDone=true},300);
+
+  // ── /game → header timer + fin de partie + route ──
+  DB.ref('/game').on('value',snap=>{
+    if(!DATA)return;
+    DATA.game=snap.val()||{...DEF.game};
+    if(creating)return;
+    if(_checkRoute()){scheduleRender('route')}
+    else scheduleRender('full');
+  });
+
+  // ── /config → rarement change (zones, timer config, cardMap) ──
+  DB.ref('/config').on('value',snap=>{
+    if(!DATA)return;
+    DATA.config=snap.val()||{...DEF.config};
+    if(creating)return;
+    if(_checkRoute()){scheduleRender('route')}
+    else scheduleRender('full');
+  });
+
+  // ── /players/[myId] → MAJ immédiate de ME + notifications vol ──
+  DB.ref('/players/'+myId).on('value',snap=>{
+    if(!DATA)return;
     const prevMe=ME;
-    DATA=v;ME=DATA.players&&DATA.players[myId]||null;
-    // Notifications victimes en temps réel
+    ME=snap.val()||null;
+    if(ME){
+      if(!DATA.players)DATA.players={};
+      DATA.players[myId]=ME;
+    }
+    // Notifications victimes (vol d'objet, vol d'or) — temps réel, pas de debounce
     if(ME&&prevMe){
       if(prevMe.hasObject&&!ME.hasObject)notify('🤏 Quelqu\'un t\'a volé l\'OBJET !','var(--red)');
       else if((ME.gold||0)<(prevMe.gold||0))notify('🤏 Tu as été volé ! −'+((prevMe.gold||0)-(ME.gold||0))+' 🪙','var(--red)');
     }
+    // Auto-promotion admin si plus aucun admin
     if(ME&&!ME.isAdmin){
       const hasAdmin=Object.values(DATA.players||{}).some(p=>p.isAdmin);
       if(!hasAdmin)DB.ref('/players/'+myId+'/isAdmin').set(true);
     }
-    if(!creating)render();
-  },err=>{document.getElementById('app').innerHTML='<div style="padding:20px;color:#e04040;font-size:12px">Erreur DB : '+err.message+'</div>'});
+    if(creating)return;
+    if(_checkRoute()){scheduleRender('route')}
+    else scheduleRender('hero-partial');
+  });
+
+  // ── /players → liste joueurs (carte, journal, joueurs) — debounced ──
+  DB.ref('/players').on('value',snap=>{
+    if(!DATA)return;
+    DATA.players=snap.val()||{};
+    ME=DATA.players[myId]||null;
+    if(creating)return;
+    const gameStatus=DATA.game?.status;
+    if(!gameStatus||gameStatus==='ended'){scheduleRender('route');return}
+    // Pendant la partie : mise à jour chirurgicale pour hero, full rebuild pour les autres tabs
+    if(gameStatus==='playing'){
+      scheduleRender(curTab==='hero'?'hero-partial':'full');
+    } else {
+      scheduleRender('full'); // lobby
+    }
+  });
+
+  // ── /events → seulement si l'onglet journal est actif ──
+  DB.ref('/events').on('value',snap=>{
+    if(!DATA)return;
+    DATA.events=snap.val()||{};
+    if(creating)return;
+    if(curTab==='journal'&&DATA.game?.status==='playing')scheduleRender('full');
+  });
+
+  // ── /chat → seulement si l'onglet chat est actif ──
+  DB.ref('/chat').on('value',snap=>{
+    if(!DATA)return;
+    DATA.chat=snap.val()||{};
+    if(creating)return;
+    if(curTab==='chat'&&DATA.game?.status==='playing')scheduleRender('full');
+  });
 }
 const fbSet=(p,v)=>DB.ref(p).set(v);
 const fbUpd=(p,u)=>DB.ref(p).update(u);
@@ -356,9 +554,9 @@ function addEv(type,text,pid2){fbPush('/events',{type,text,ts:Date.now(),pid:pid
 // ══ ROUTER ══
 function render(){
   if(!DATA){document.getElementById('app').innerHTML='<div class="loading"><div class="loading-title">MJ</div><div class="loading-sub">Connexion...</div></div>';return}
-  if(DATA.game.status==='ended'){renderEnd();return}
+  if(DATA.game?.status==='ended'){renderEnd();return}
   if(!DATA.config?.gameCode||!ME){if(!creating)renderHome();return}
-  if(DATA.game.status==='lobby'){renderWait();return}
+  if(DATA.game?.status==='lobby'){renderWait();return}
   renderGame()
 }
 
@@ -529,6 +727,8 @@ window.flowFinish=async function(){
   await fbSet('/players/'+myId,player);
   if(d.cardId&&!amAdmin)await fbSet('/config/cardMap/'+d.cardId,'player:'+myId);
   addEv('system',d.name+(amAdmin?' crée':'  rejoint')+' la partie',myId);
+  // Mise à jour locale de ME pour que render() puisse s'exécuter sans attendre le listener
+  ME=player;if(!DATA.players)DATA.players={};DATA.players[myId]=player;
   creating=false;render()
 };
 
