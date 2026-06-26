@@ -947,7 +947,7 @@ function rCarte(){
       +'<div style="font-size:28px">'+z.icon+'</div>'
       +'<div style="font-size:11px;font-weight:700;margin:4px 0">'+z.name+'</div>'
       +(isMine?'<div style="font-size:9px;color:var(--blue)">📍 Vous</div>':'')
-      +(here.length?'<div class="zc-count">'+here.map(p=>p.name).join(', ')+'</div>':'')
+      +(here.length?'<div class="zc-count">'+(isMine?here.filter(p=>p.zone===zid).map(p=>p.name).join(', '):here.length+' 👤')+'</div>':'')
       +'</div>';}).join('');
   return'<div class="carte-wrap"><div class="card"><div class="ct">🗺️ Zones</div><div class="zg">'+cards+'</div></div></div>'
 }
@@ -958,7 +958,7 @@ window.onZoneCarte=function(zid){
   showModal('<div style="text-align:center;margin-bottom:14px">'
     +'<div style="font-size:36px">'+z.icon+'</div>'
     +'<div style="font-family:\'Press Start 2P\';font-size:10px;color:var(--gold);margin-top:8px">'+z.name+'</div>'
-    +(here.length?'<div style="font-size:12px;color:var(--gray);margin-top:6px">'+here.length+' joueur'+(here.length>1?'s':'')+' présent'+(here.length>1?'s':'')+' : '+here.map(p=>p.name).join(', ')+'</div>':'')
+    +(here.length?'<div style="font-size:12px;color:var(--gray);margin-top:6px">'+(isMine?here.map(p=>p.name).join(', '):here.length+' joueur'+(here.length>1?'s':'')+' présent'+(here.length>1?'s':''))+'</div>':'')
     +'</div>'
     +(isMine?'<button class="btn btn-green" style="margin-bottom:8px" onclick="doFouille()"'+(canFouille?'':' disabled')+'>🔍 Fouiller</button>'
       +(ME?.hasObject?'<button class="btn btn-gray" style="margin-bottom:8px" onclick="closeModal();doHideObj(\''+zid+'\')">🙈 Cacher l\'objet</button>':'')
@@ -968,7 +968,8 @@ window.onZoneCarte=function(zid){
 window.doHideObj=async function(zid){
   await fbUpd('/game',{objectHolder:null,objectZone:zid});
   await fbUpd('/players/'+myId,{hasObject:false});
-  addEv('info',ME.name+' cache discrètement l\'objet...',myId);notify('Objet caché !','var(--green)')
+  addEv('info','🗝️ Vous avez caché l\'objet.',myId);
+  addEv('info','🗝️ L\'objet a été caché à nouveau.',null);notify('Objet caché !','var(--green)')
 };
 
 // ══ TAB JOUEURS ══
@@ -984,20 +985,13 @@ function rJoueurs(){
         +sImg(p.classe,p.genre,p.xp||0,64)
         +'<div class="pr-info"><div class="pr-name">'+p.name+(id===myId?' <span style="color:var(--gray);font-size:10px">(moi)</span>':'')+'</div>'
         +'<div class="pr-sub">'+playerTitle(p)+' · '+p.classe+'</div>'
-        +(p.zone&&gZ(p.zone)?'<div style="font-size:10px;color:'+(sameZ?'var(--blue)':'var(--gray)')+';margin-top:2px">'+(sameZ?'📍 Même zone — ':'')+gZ(p.zone).name+'</div>':'')
+        +(sameZ&&p.zone&&gZ(p.zone)?'<div style="font-size:10px;color:var(--blue);margin-top:2px">📍 Même zone</div>':'')
         +'</div><div class="pr-right">'
-        +(p.hasObject?'<span class="badge badge-obj">🗝️</span>':'')
         +(p.isAdmin?'<span class="badge badge-admin">👑</span>':'')
-        +(isAdmin()&&id!==myId?'<span style="font-size:12px;color:var(--gold)">'+(p.gold||0)+' 🪙</span>':'')
         +(sameZ&&onCd?'<span class="badge badge-cd">⏳</span>':'')
         +'</div></div>'
     }).join('')+'</div>'
-    +(isAdmin()?'<div class="card" style="border-color:var(--purple)"><div class="ct">👑 MJ — Tableau de bord</div>'
-      +(()=>{const oz=DATA.game?.objectZone,oh=DATA.game?.objectHolder;
-        const oTxt=oh?'🗝️ Objet détenu par <b>'+(DATA.players?.[oh]?.name||oh)+'</b>'
-          :oz?'🗝️ Objet caché : <b>'+(gZ(oz)?.icon||'')+(gZ(oz)?.name||oz)+'</b>'
-          :'🗝️ Objet : position inconnue';
-        return'<div style="font-size:12px;background:var(--bg2);border:1px solid var(--gold);border-radius:6px;padding:8px 12px;margin-bottom:10px">'+oTxt+'</div>'})()
+    +(isAdmin()?'<div class="card" style="border-color:var(--purple)"><div class="ct">👑 MJ — Outils</div>'
       +'<button class="btn btn-red" style="margin-bottom:12px" onclick="adminEnd()">⏹️ Terminer la partie</button>'
       +'</div>':'')
     +'</div>'
@@ -1050,10 +1044,10 @@ window.sendChat=function(){
 function rJournal(){
   // Filtre les events système (création/join) qui ne doivent pas être visibles
   const evs=Object.values(DATA.events||{})
-    .filter(e=>e.type!=='system')
+    .filter(e=>e.type!=='system'&&(e.pid===myId||e.pid===null))
     .sort((a,b)=>b.ts-a.ts).slice(0,80);
-  if(!evs.length)return'<div class="panel" style="margin:12px;text-align:center;color:var(--gray)">Aucun événement de jeu</div>';
-  return'<div style="padding:12px"><div class="card"><div class="ct">📜 Journal</div>'
+  if(!evs.length)return'<div class="panel" style="margin:12px;text-align:center;color:var(--gray)">Aucun événement pour toi</div>';
+  return'<div style="padding:12px"><div class="card"><div class="ct">📜 Mon Journal</div>'
     +evs.map(e=>'<div class="ev '+e.type+'"><div>'+e.text+'</div><div class="ev-time">'+fmtTs(e.ts)+'</div></div>').join('')+'</div>'
     +'</div>'
 }
@@ -1182,7 +1176,8 @@ async function searchZone(zid){
         gold+=50;txt='🗝️ Vous trouvez L\'OBJET et '+gold+' 🪙 !';
         await fbUpd('/game',{objectHolder:myId,objectZone:null});
         await fbUpd('/players/'+myId,{hasObject:true,gold:(ME.gold||0)+gold});
-        addEv('critical','🗝️ '+ME.name+' trouve L\'OBJET dans '+gZ(zid)?.name+' !',myId);
+        addEv('critical','🗝️ Vous avez trouvé L\'OBJET !',myId);
+        addEv('critical','🗝️ L\'objet a été trouvé !',null);
         showDice(roll,txt);return;
       } else txt='Une présence mystérieuse... quelque chose est caché ici. +'+gold+' 🪙';
     } else txt='+'+gold+' 🪙 trouvés.';
@@ -1209,7 +1204,8 @@ async function stealPlayer(tid){
       await fbUpd('/game',{objectHolder:myId});
       await fbUpd('/players/'+myId,{hasObject:true});
       await fbUpd('/players/'+tid,{hasObject:false});
-      addEv('critical',ME.name+' vole L\'OBJET à '+tgt.name+' !',myId);
+      addEv('critical','🗝️ Vous avez dérobé L\'OBJET !',myId);
+      addEv('critical','🗝️ L\'objet a changé de mains !',null);
     } else {
       stolen=Math.max(0,Math.min(tgt.gold||0,Math.floor(Math.random()*(tgt.gold||0)*0.3)+(sl>=2?20:0)));
       if(roll.result!=='success')stolen=Math.floor(stolen*1.5);
@@ -1273,11 +1269,11 @@ async function checkVictory(){
   if(DATA.game.objectHolder){
     const w=DATA.players[DATA.game.objectHolder];
     await fbUpd('/game',{status:'ended',winner:DATA.game.objectHolder,winnerMsg:'🏆 '+w.name+' remporte la quête avec l\'objet !'});
-    addEv('critical','🏆 '+w.name+' gagne la partie !',DATA.game.objectHolder);
+    addEv('critical','🏆 '+w.name+' remporte la quête !',null);
   } else {
     let mx=-1,wid=null;
     Object.entries(DATA.players||{}).forEach(([id,p])=>{if((p.gold||0)>mx){mx=p.gold;wid=id}});
-    if(wid){const w=DATA.players[wid];await fbUpd('/game',{status:'ended',winner:wid,winnerMsg:'💰 '+w.name+' gagne avec '+mx+' 🪙 !'});addEv('critical','💰 '+w.name+' gagne !',wid)}
+    if(wid){const w=DATA.players[wid];await fbUpd('/game',{status:'ended',winner:wid,winnerMsg:'💰 '+w.name+' gagne avec '+mx+' 🪙 !'});addEv('critical','💰 Un joueur remporte la quête avec le plus d\'or !',null)}
   }
 }
 
