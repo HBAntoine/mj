@@ -82,6 +82,41 @@ body { background: #1a1a2e; font-family: sans-serif; color: #eee; }
 }
 .card-empty { visibility: hidden; }
 
+
+/* SIMULATION (no-print) */
+.btn-sim { background: #0a3a3a; color: #4ff; border: 1px solid #4ff; font-size: 12px; }
+.sim-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.88); z-index: 1000;
+  display: none; flex-direction: column;
+  align-items: center; padding: 20px; overflow-y: auto; color: #eee;
+}
+.sim-overlay.open { display: flex; }
+.sim-close {
+  position: absolute; top: 14px; right: 18px;
+  background: none; border: none; color: #fff; font-size: 24px; cursor: pointer;
+}
+.sim-title { font-size: 14px; color: #ffe066; margin-bottom: 4px; }
+.sim-tabs { display: flex; gap: 8px; margin: 10px 0 18px; }
+.sim-tab {
+  padding: 6px 14px; border-radius: 6px; border: 1px solid #444;
+  background: #2a2a3a; color: #aaa; cursor: pointer; font-size: 11px;
+}
+.sim-tab.active { background: #a040f0; color: #fff; border-color: #a040f0; }
+.sim-panel { display: none; flex-direction: column; align-items: center; gap: 14px; }
+.sim-panel.active { display: flex; }
+.sim-card {
+  width: 220px; height: 308px;
+  position: relative; border-radius: 4px; overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,.6);
+}
+.sim-card img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
+.sim-row { display: flex; gap: 24px; align-items: flex-start; }
+.sim-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.sim-label { font-size: 10px; color: #888; text-align: center; }
+.sim-note  { font-size: 10px; color: #aaa; text-align: center; max-width: 280px; line-height: 1.6; }
+.sim-slider { width: 220px; margin-top: 6px; }
+.sim-pct   { font-size: 11px; color: #aaa; }
 /* PRINT */
 @page { size: A4 portrait; margin: 0; }
 @media print {
@@ -125,6 +160,51 @@ body { background: #1a1a2e; font-family: sans-serif; color: #eee; }
   </div>
 </div>
 
+
+<div class="sim-overlay no-print" id="sim-overlay">
+  <button class="sim-close" onclick="closeSim()">&#10005;</button>
+  <div class="sim-title">Simulation superposition</div>
+  <div class="sim-tabs">
+    <button class="sim-tab active" onclick="showSimTab(0)">C&ocirc;te &agrave; c&ocirc;te</button>
+    <button class="sim-tab"        onclick="showSimTab(1)">Superposition 50%</button>
+    <button class="sim-tab"        onclick="showSimTab(2)">Slider interactif</button>
+  </div>
+
+  <!-- Vue 1 : cote a cote -->
+  <div class="sim-panel active" id="sp-0">
+    <div class="sim-row">
+      <div class="sim-col">
+        <div class="sim-card"><img id="sf1" src="" alt="face"></div>
+        <div class="sim-label">Face (QR)</div>
+      </div>
+      <div class="sim-col">
+        <div class="sim-card"><img id="sd1" src="" alt="dos"></div>
+        <div class="sim-label">Dos (Mage)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vue 2 : superposition 50% -->
+  <div class="sim-panel" id="sp-1">
+    <div class="sim-card">
+      <img id="sd2" src="" alt="dos">
+      <img id="sf2" src="" alt="face" style="opacity:0.5">
+    </div>
+    <div class="sim-note">Les bords or, losanges et MJ doivent se superposer parfaitement.</div>
+  </div>
+
+  <!-- Vue 3 : slider -->
+  <div class="sim-panel" id="sp-2">
+    <div class="sim-card">
+      <img id="sd3" src="" alt="dos">
+      <img id="sf3" src="" alt="face" style="opacity:1">
+    </div>
+    <input class="sim-slider" type="range" min="0" max="100" value="100"
+      oninput="document.getElementById('sf3').style.opacity=this.value/100;document.getElementById('sim-pct').textContent=this.value+'%'">
+    <div class="sim-pct" id="sim-pct">100%</div>
+    <div class="sim-note">0% = dos sombre &nbsp;|&nbsp; 50% = superposition &nbsp;|&nbsp; 100% = face QR</div>
+  </div>
+</div>
 <div id="pages"></div>
 
 <script>
@@ -230,9 +310,43 @@ function toggleMode() {
     fullMode ? 'mode-badge full' : 'mode-badge';
   document.getElementById('btn-mode').textContent =
     fullMode ? 'Revenir en mode test' : 'Passer en mode 100 cartes';
-  generatePages();
+  
+function openSim() {
+  ['sf1','sf2','sf3'].forEach(function(id){ document.getElementById(id).src = FACE_SRC; });
+  ['sd1','sd2','sd3'].forEach(function(id){ document.getElementById(id).src = DOS_SRC;  });
+  document.getElementById('sim-overlay').classList.add('open');
+}
+function closeSim() {
+  document.getElementById('sim-overlay').classList.remove('open');
+}
+function showSimTab(idx) {
+  document.querySelectorAll('.sim-tab').forEach(function(t,i){
+    t.className = 'sim-tab' + (i===idx ? ' active' : '');
+  });
+  document.querySelectorAll('.sim-panel').forEach(function(p,i){
+    p.className = 'sim-panel' + (i===idx ? ' active' : '');
+  });
+}
+generatePages();
 }
 
+
+function openSim() {
+  ['sf1','sf2','sf3'].forEach(function(id){ document.getElementById(id).src = FACE_SRC; });
+  ['sd1','sd2','sd3'].forEach(function(id){ document.getElementById(id).src = DOS_SRC;  });
+  document.getElementById('sim-overlay').classList.add('open');
+}
+function closeSim() {
+  document.getElementById('sim-overlay').classList.remove('open');
+}
+function showSimTab(idx) {
+  document.querySelectorAll('.sim-tab').forEach(function(t,i){
+    t.className = 'sim-tab' + (i===idx ? ' active' : '');
+  });
+  document.querySelectorAll('.sim-panel').forEach(function(p,i){
+    p.className = 'sim-panel' + (i===idx ? ' active' : '');
+  });
+}
 generatePages();
 </script>
 </body>
