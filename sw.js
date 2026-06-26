@@ -1,4 +1,4 @@
-const CACHE = 'mj-sprites-v3';
+const CACHE = 'mj-sprites-v4';
 const CACHE_FILES = [
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -18,6 +18,13 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+
+  // Pages HTML : toujours depuis le réseau, jamais le cache HTTP
+  if (e.request.mode === 'navigate' || e.request.url.match(/\.html(\?|$)/)) {
+    e.respondWith(fetch(e.request, { cache: 'no-store' }));
+    return;
+  }
+
   // Sprites + icônes : cache-first
   if (e.request.url.includes('/Sprite/') || e.request.url.includes('/icons/')) {
     e.respondWith(
@@ -29,6 +36,7 @@ self.addEventListener('fetch', e => {
         });
       })
     );
+    return;
   }
-  // Tout le reste (index.html, manifest…) : réseau direct, jamais le cache SW
+  // Tout le reste : réseau direct
 });
