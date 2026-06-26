@@ -283,7 +283,7 @@ function generatePages() {
 
   if (!fullMode) {
     /* TEST : 1 carte en position 3 sur chaque page */
-    container.appendChild(buildRectoPage([1], 2));
+    container.appendChild(buildRectoPage([1], 0));
     container.appendChild(buildVersoPage(1, 2));
     toGen.push(1);
   } else {
@@ -292,10 +292,9 @@ function generatePages() {
       var start = p * 9 + 1;
       var nums = [];
       for (var i = start; i <= Math.min(start + 8, 100); i++) nums.push(i);
-      var isPartial = nums.length < 9;
-      var off = isPartial ? 2 : 0;
-      container.appendChild(buildRectoPage(nums, off));
-      container.appendChild(buildVersoPage(nums.length, off));
+      var vOff = (nums.length < 9) ? 2 : 0;
+      container.appendChild(buildRectoPage(nums, 0));
+      container.appendChild(buildVersoPage(nums.length, vOff));
       nums.forEach(function(n) { toGen.push(n); });
     }
   }
