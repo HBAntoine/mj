@@ -329,7 +329,13 @@ function initFB(){
   DB.ref('/').on('value',snap=>{
     const v=snap.val();
     if(!v){DB.ref('/').set(DEF);return}
+    const prevMe=ME;
     DATA=v;ME=DATA.players&&DATA.players[myId]||null;
+    // Notifications victimes en temps réel
+    if(ME&&prevMe){
+      if(prevMe.hasObject&&!ME.hasObject)notify('🤏 Quelqu\'un t\'a volé l\'OBJET !','var(--red)');
+      else if((ME.gold||0)<(prevMe.gold||0))notify('🤏 Tu as été volé ! −'+((prevMe.gold||0)-(ME.gold||0))+' 🪙','var(--red)');
+    }
     if(ME&&!ME.isAdmin){
       const hasAdmin=Object.values(DATA.players||{}).some(p=>p.isAdmin);
       if(!hasAdmin)DB.ref('/players/'+myId+'/isAdmin').set(true);
@@ -810,9 +816,9 @@ function rHero(){
   const sameZone=myZone?Object.entries(DATA.players||{}).filter(([id,p])=>id!==myId&&p.zone===myZone):[];
 
   // Zone chip
-  const zoneBlock='<div class="zone-chip" onclick="showZonePicker()">'
+  const zoneBlock='<div class="zone-chip"'+(isAdmin()?' onclick="showZonePicker()"':' onclick="openGameScanner()"')+'>'
     +'<div>'+(myZone?'<div style="font-size:10px;color:var(--gray)">Zone actuelle</div><div class="zone-name">'+gZ(myZone)?.icon+' '+zName+'</div>':'<div class="zone-name" style="color:var(--gray)">📍 Aucune zone</div>')+'</div>'
-    +'<div class="zone-chip-btn">Changer →</div></div>';
+    +(isAdmin()?'<div class="zone-chip-btn">Changer →</div>':'<div class="zone-chip-btn">📷 Scanner</div>')+'</div>';
 
   // Sprite central (cliquable)
   const spriteBlock='<div class="hero-sprite-wrap" onclick="showActionSheet()">'
@@ -877,8 +883,8 @@ window.showActionSheet=function(){
     +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gold);margin-top:8px">'+ME.name+'</div>'
     +'<div style="font-size:11px;color:var(--gray);margin-top:2px">'+playerTitle(ME)+' · '+(myZone&&gZ(myZone)?'📍 '+gZ(myZone).name:'Aucune zone')+'</div></div>'
     +'<div style="display:grid;gap:8px">'
-    +'<button class="btn btn-blue" '+(myZone&&canFouille?'onclick="doFouille()"':(myZone?'disabled':' onclick="showZonePicker()"'))+'>'
-    +'🔍 Fouiller'+(myZone?'':(myZone?'':' (choisir une zone)'))+'</button>'
+    +(myZone?'<button class="btn btn-blue" '+(canFouille?'onclick="doFouille()"':'disabled')+'>🔍 Fouiller</button>'
+      :'<button class="btn btn-gray" onclick="closeModal();openGameScanner()">📷 Scanner un QR pour entrer dans une zone</button>')
     +(sameZone.length?'<button class="btn btn-red" onclick="closeModal();showTargets(\'vol\')">🤏 Voler quelqu\'un</button>'
       +'<button class="btn btn-blue" onclick="closeModal();showTargets(\'espionnage\')">👁️ Espionner</button>'
       +'<button class="btn btn-gold" onclick="closeModal();showTargets(\'parole\')">💬 Parler</button>'
@@ -887,68 +893,20 @@ window.showActionSheet=function(){
     +'<button class="btn btn-gray" onclick="closeModal()">Fermer</button></div>')
 };
 
+// Admin only — déplacement libre via picker (joueurs passent par QR scan)
 window.showZonePicker=function(){
   const zones=Object.keys(gZL());
-  const codesActive=DATA.zones&&Object.keys(DATA.zones).some(z=>DATA.zones[z]?.code);
   showModal('<div class="ct">📍 Se déplacer</div>'
-    +(codesActive?'<div style="font-size:11px;color:var(--orange);text-align:center;margin-bottom:10px">🔒 Codes de zone actifs — entre dans la pièce pour trouver le code</div>':'')
     +'<div class="zg">'+zones.map(zid=>{
       const z=gZ(zid)||{name:zid,icon:'📍'},here=Object.values(DATA.players||{}).filter(p=>p.zone===zid),isMine=ME?.zone===zid;
-      const hasCode=DATA.zones?.[zid]?.code;
-      return'<div class="zc'+(isMine?' mine':'')+'" onclick="selectZoneToMove(\''+zid+'\')">'
+      return'<div class="zc'+(isMine?' mine':'')+'" onclick="moveZone(\''+zid+'\')">'
         +'<div style="font-size:24px">'+z.icon+'</div>'
         +'<div style="font-size:11px;font-weight:700">'+z.name+'</div>'
-        +(hasCode&&!isMine?'<div style="font-size:9px;color:var(--orange)">🔒</div>':'')
         +(here.length?'<div class="zc-count">'+here.length+' 👤</div>':'')
         +'</div>';}).join('')+'</div>'
     +'<button class="btn btn-gray" style="margin-top:12px" onclick="closeModal()">Annuler</button>')
 };
-window.selectZoneToMove=function(zid){
-  const z=gZ(zid)||{name:zid,icon:'📍'},code=DATA.zones?.[zid]?.code;
-  if(!code||isAdmin()){moveZone(zid);return}
-  closeModal();
-  showModal('<div style="text-align:center;margin-bottom:14px">'
-    +'<div style="font-size:36px">'+z.icon+'</div>'
-    +'<div style="font-family:\'Press Start 2P\';font-size:10px;color:var(--gold);margin:8px 0">'+z.name+'</div>'
-    +'<div style="font-size:12px;color:var(--gray);margin-bottom:12px">Entre le code secret affiché dans cette pièce</div>'
-    +'</div>'
-    +'<input id="zone-code-inp" class="inp pin-inp" placeholder="???" maxlength="6" style="text-transform:uppercase" autocomplete="off">'
-    +'<button class="btn btn-blue" onclick="submitZoneCode(\''+zid+'\')">Confirmer</button>'
-    +'<button class="btn btn-gray" style="margin-top:8px" onclick="showZonePicker()">← Retour</button>')
-  setTimeout(()=>document.getElementById('zone-code-inp')?.focus(),200)
-};
-window.submitZoneCode=function(zid){
-  const inp=document.getElementById('zone-code-inp');
-  const val=inp?.value?.trim().toUpperCase();
-  const expected=(DATA.zones?.[zid]?.code||'').toUpperCase();
-  if(val===expected){moveZone(zid)}
-  else{inp.value='';inp.style.borderColor='var(--red)';inp.placeholder='Code incorrect';setTimeout(()=>{inp.style.borderColor='';inp.placeholder='???'},1500)}
-};
 window.moveZone=async function(zid){closeModal();await fbUpd('/players/'+myId,{zone:zid});addEv('info',ME.name+' se déplace vers '+gZ(zid)?.name,myId);notify('📍 '+gZ(zid)?.name,'var(--blue)');renderTab()};
-
-// Admin : gérer les codes de zone
-window.showZoneCodes=function(){
-  const zones=Object.keys(gZL());
-  showModal('<div class="ct">🔑 Codes de zone</div>'
-    +'<div style="font-size:11px;color:var(--gray);margin-bottom:12px">Définis un code secret pour chaque zone. Les joueurs devront le trouver physiquement sur place.</div>'
-    +zones.map(zid=>{
-      const z=gZ(zid)||{name:zid,icon:'📍'},cur=DATA.zones?.[zid]?.code||'';
-      return'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
-        +'<span style="font-size:18px;flex-shrink:0">'+z.icon+'</span>'
-        +'<span style="flex:1;font-size:12px;font-weight:700">'+z.name+'</span>'
-        +'<input id="zc-'+zid+'" class="inp" style="width:90px;margin:0;font-family:\'Press Start 2P\';font-size:11px;text-align:center;text-transform:uppercase;padding:6px" placeholder="---" value="'+cur+'" maxlength="6">'
-        +'</div>';}).join('')
-    +'<button class="btn btn-gold" style="margin-top:12px" onclick="saveZoneCodes()">💾 Enregistrer</button>'
-    +'<button class="btn btn-gray" style="margin-top:8px" onclick="clearZoneCodes()">🗑️ Supprimer tous les codes</button>'
-    +'<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal()">Fermer</button>')
-};
-window.saveZoneCodes=async function(){
-  const zones=Object.keys(gZL());
-  const upd={};
-  zones.forEach(zid=>{const v=document.getElementById('zc-'+zid)?.value?.trim().toUpperCase();if(v)upd[zid]={code:v};else upd[zid]=null;});
-  await fbSet('/zones',upd);closeModal();notify('Codes enregistrés !','var(--green)')
-};
-window.clearZoneCodes=async function(){await fbSet('/zones',null);closeModal();notify('Codes supprimés','var(--gray)');}
 
 window.showTargets=function(action){
   const myZone=ME?.zone;
@@ -1034,8 +992,12 @@ function rJoueurs(){
         +(sameZ&&onCd?'<span class="badge badge-cd">⏳</span>':'')
         +'</div></div>'
     }).join('')+'</div>'
-    +(isAdmin()?'<div class="card" style="border-color:var(--purple)"><div class="ct">👑 MJ — Outils</div>'
-      +'<button class="btn btn-gold" style="margin-bottom:8px" onclick="showZoneCodes()">🔑 Codes de zone (déplacements IRL)</button>'
+    +(isAdmin()?'<div class="card" style="border-color:var(--purple)"><div class="ct">👑 MJ — Tableau de bord</div>'
+      +(()=>{const oz=DATA.game?.objectZone,oh=DATA.game?.objectHolder;
+        const oTxt=oh?'🗝️ Objet détenu par <b>'+(DATA.players?.[oh]?.name||oh)+'</b>'
+          :oz?'🗝️ Objet caché : <b>'+(gZ(oz)?.icon||'')+(gZ(oz)?.name||oz)+'</b>'
+          :'🗝️ Objet : position inconnue';
+        return'<div style="font-size:12px;background:var(--bg2);border:1px solid var(--gold);border-radius:6px;padding:8px 12px;margin-bottom:10px">'+oTxt+'</div>'})()
       +'<button class="btn btn-red" style="margin-bottom:12px" onclick="adminEnd()">⏹️ Terminer la partie</button>'
       +'</div>':'')
     +'</div>'
@@ -1357,15 +1319,6 @@ window.doReset=async function(){
 };
 
 // ══ ADMIN ACTIONS (dans les onglets) ══
-window.adminStart=async function(){
-  const inp=document.getElementById('tl')||document.getElementById('adm-t');
-  const t=parseInt(inp?.value||30);
-  const zz=Object.keys(gZL());
-  const rz=zz[Math.floor(Math.random()*zz.length)];
-  await fbUpd('/config',{timerMinutes:t});
-  await fbUpd('/game',{status:'playing',objectZone:rz,objectHolder:null,timerEnd:Date.now()+t*60000,startedAt:Date.now()});
-  addEv('mj','⚔️ La quête commence ! Durée : '+t+' min.',null);notify('Partie lancée !','var(--green)')
-};
 
 // ══ MODAL ══
 function showModal(html){closeModal();const bd=document.createElement('div');bd.className='mb';bd.innerHTML='<div class="mo">'+html+'</div>';bd.addEventListener('click',e=>{if(e.target===bd)closeModal()});document.body.appendChild(bd)}
