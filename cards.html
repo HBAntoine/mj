@@ -139,6 +139,8 @@ body { background: #1a1a2e; font-family: sans-serif; color: #eee; }
     break-after: page;
   }
   .page:last-child { page-break-after: avoid; break-after: avoid; }
+  /* Compensation drift duplex HP (~2.5mm axe Y) — ajuster entre 2mm et 3mm */
+  .page-verso { margin-top: 2.5mm; margin-bottom: -2.5mm; }
 }
 </style>
 </head>
