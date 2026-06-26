@@ -275,10 +275,15 @@ const SKILLS={fouille:{label:'Fouille',icon:'🔍'},vol:{label:'Vol',icon:'🤏'
 const XP_STADE=[0,20,50,100];
 const STADES=['Base','L1','L2','L3'];
 const XP_SKILL=[8,20,40];
+const SCENARIOS=[
+  {id:'menteur_voleur',name:'Menteur Voleur',icon:'🗝️',desc:'Trouve et garde l\'objet caché jusqu\'à la fin du timer.',available:true},
+  {id:'assassin',name:'Assassin Caché',icon:'🗡️',desc:'Bientôt disponible.',available:false},
+  {id:'enigme',name:'L\'Énigme',icon:'🔮',desc:'Bientôt disponible.',available:false},
+];
 const RESULT_LABELS={critical_fail:'💀 Échec Critique',fail:'✗ Échec',success:'✓ Succès',strong_success:'★ Succès Fort',critical:'⚡ Succès Critique'};
 const DEF={
   game:{status:'lobby',objectZone:null,objectHolder:null,timerEnd:null,startedAt:null,winner:null,winnerMsg:null},
-  config:{timerMinutes:30,cooldownRatio:0.12,gameCode:null,gameId:null},
+  config:{timerMinutes:30,cooldownRatio:0.12,gameCode:null,gameId:null,scenario:'menteur_voleur'},
   players:{},events:[],zones:{}
 };
 
@@ -373,7 +378,7 @@ window.renderHome=renderHome;
 // ══ FLUX CRÉATION ══
 function startFlow(mode){
   if(mode==='join'){showJoinCardModal();return}
-  creating=true;flow={mode,step:1,data:{name:'',classe:'',genre:'',pin:'',code:'',cardId:''}};renderFlow()
+  creating=true;flow={mode,step:1,data:{name:'',classe:'',genre:'',pin:'',code:'',cardId:'',scenario:''}};renderFlow()
 }
 window.startFlow=startFlow;
 
@@ -404,7 +409,7 @@ window.scanJoinCard=function(){
 function _startJoinFlow(cardId){
   closeModal();
   creating=true;
-  flow={mode:'join',step:1,data:{name:'',classe:'',genre:'',pin:'',code:'',cardId}};
+  flow={mode:'join',step:1,data:{name:'',classe:'',genre:'',pin:'',code:'',cardId,scenario:''}};
   renderFlow()
 }
 // Storage event : si le scan s'est ouvert dans un autre onglet
@@ -413,13 +418,29 @@ window.addEventListener('storage',function(e){
     localStorage.removeItem('mj_join_card_result');_startJoinFlow(e.newValue)
   }
 });
-function totalSteps(){return flow.mode==='create'?4:5}
+function totalSteps(){return 5}
 function renderFlow(){document.getElementById('app').innerHTML='<div class="flow"><div class="flow-inner">'+flowHtml()+'</div></div>'}
 function dots(){const n=totalSteps();return'<div class="steps">'+Array.from({length:n},(_,i)=>'<div class="step-dot'+(i+1<flow.step?' done':i+1===flow.step?' active':'')+'"></div>').join('')+'</div>'}
 
 function flowHtml(){
   const s=flow.step,d=flow.data,isJoin=flow.mode==='join';
-  const codeS=isJoin?1:null,nameS=isJoin?2:1,classeS=isJoin?3:2,genreS=isJoin?4:3,pinS=isJoin?5:4;
+  const scenarioS=isJoin?null:1,codeS=isJoin?1:null,nameS=2,classeS=3,genreS=4,pinS=5;
+  if(s===scenarioS){
+    return'<div class="flow-title" style="font-size:11px">Scénario</div>'
+      +'<div class="flow-sub">Quel scénario jouez-vous ce soir ?</div>'+dots()
+      +'<div style="display:flex;flex-direction:column;gap:10px">'
+      +SCENARIOS.map(sc=>'<div class="classe-card'+(d.scenario===sc.id?' sel':'')+(sc.available?'':'')+'" '
+        +(sc.available?'onclick="flowSet(\'scenario\',\''+sc.id+'\')"':'')
+        +' style="'+(sc.available?'':'opacity:.4;cursor:not-allowed')+'">'
+        +'<div style="font-size:32px;margin-bottom:8px">'+sc.icon+'</div>'
+        +'<div class="cc-name" style="font-size:8px;margin-bottom:6px">'+sc.name+'</div>'
+        +'<div class="cc-desc">'+sc.desc+'</div>'
+        +(sc.available?'':'<div style="font-size:9px;color:var(--gray);margin-top:6px">Bientôt</div>')
+        +'</div>').join('')
+      +'</div>'
+      +'<button class="btn btn-gold" style="margin-top:14px" onclick="flowNext()"'+(d.scenario?'':' disabled')+'>Continuer →</button>'
+      +'<button class="btn btn-gray" style="margin-top:8px" onclick="renderHome()">← Retour</button>';
+  }
   if(s===codeS)return'<div class="flow-title" style="font-size:11px">Rejoindre une partie</div>'
     +'<div class="flow-sub">Code de partie (4 caractères)</div>'+dots()
     +'<input id="f-code" class="inp pin-inp" placeholder="ABCD" maxlength="4" style="text-transform:uppercase" autocomplete="off">'
@@ -477,7 +498,7 @@ window.flowPinKey=function(k){
 };
 window.flowNext=async function(){
   const s=flow.step,d=flow.data,isJoin=flow.mode==='join';
-  const nameS=isJoin?2:1,classeS=isJoin?3:2;
+  if(!isJoin&&s===1&&!d.scenario){notify('Choisis un scénario','var(--red)');return}
   if(isJoin&&s===1){
     const v=document.getElementById('f-code')?.value?.toUpperCase().trim();
     if(!v||v.length!==4){notify('Code invalide (4 caractères)','var(--red)');return}
@@ -485,8 +506,8 @@ window.flowNext=async function(){
     if(!snap.val()||snap.val()!==v){notify('Code introuvable','var(--red)');return}
     d.code=v;
   }
-  if(s===nameS){const v=document.getElementById('f-name')?.value?.trim();if(!v||v.length<2){notify('Pseudo trop court','var(--red)');return}d.name=v}
-  if(s===classeS&&!d.classe){notify('Choisis une classe','var(--red)');return}
+  if(s===2){const v=document.getElementById('f-name')?.value?.trim();if(!v||v.length<2){notify('Pseudo trop court','var(--red)');return}d.name=v}
+  if(s===3&&!d.classe){notify('Choisis une classe','var(--red)');return}
   flow.step++;renderFlow()
 };
 window.flowBack=function(){if(flow.step<=1){renderHome();return}flow.step--;renderFlow()};
@@ -498,7 +519,7 @@ window.flowFinish=async function(){
   const d=flow.data,amAdmin=flow.mode==='create';
   if(amAdmin){
     const code=genCode();
-    await DB.ref('/').set({...DEF,config:{...DEF.config,timerMinutes:30,gameCode:code,gameId:Date.now()}});
+    await DB.ref('/').set({...DEF,config:{...DEF.config,timerMinutes:30,gameCode:code,gameId:Date.now(),scenario:d.scenario||'menteur_voleur'}});
     addEv('system','Partie créée — Code : '+code,null); // 'system' = filtré du journal
   }
   const player={name:d.name,classe:d.classe,genre:d.genre,pin:d.pin,
@@ -519,7 +540,9 @@ function renderWait(){
     +'<div style="background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:16px;margin-bottom:16px;text-align:center">'
     +'<div style="font-size:11px;color:var(--gray);margin-bottom:6px">Code de la partie</div>'
     +'<div class="wait-code">'+code+'</div>'
-    +'<div style="font-size:11px;color:var(--gray);margin-top:6px">Partage ce code avec tes amis</div></div>';
+    +'<div style="font-size:11px;color:var(--gray);margin-top:6px">Partage ce code avec tes amis</div>'
+    +(()=>{const sc=SCENARIOS.find(s=>s.id===(DATA.config?.scenario||'menteur_voleur'));return sc?'<div style="font-size:11px;color:var(--gold);margin-top:8px">'+sc.icon+' '+sc.name+'</div>':''})()
+    +'</div>';
   if(ME)h+='<div style="background:var(--panel);border:2px solid var(--border);border-radius:6px;padding:12px;margin-bottom:16px;display:flex;align-items:center;gap:12px">'
     +sImg(ME.classe,ME.genre,ME.xp||0,76,'hero-sprite s'+stadeOf(ME.xp||0))
     +'<div style="flex:1"><div style="font-family:\'Press Start 2P\';font-size:8px;color:var(--gold)">'+ME.name+'</div>'
@@ -681,7 +704,7 @@ window.assignZoneCard=function(zid){
     +'<input id="zone-card-inp" class="inp" style="flex:1;margin:0;text-transform:uppercase" placeholder="C07" maxlength="4" autocomplete="off">'
     +'<button class="btn btn-gold btn-sm" onclick="submitZoneCard(\''+zid+'\')">OK</button></div>'
     +'<div style="font-size:10px;color:var(--gray);margin-bottom:14px">— ou scanne la carte avec ce téléphone —</div>'
-    +'<button class="btn btn-blue" onclick="waitForCardScan(\'zone:'+zid+'\',\''+z.name+'\')">📱 Scanner la carte</button>'
+    +'<button class="btn btn-blue" onclick="waitForCardScan(\'zone:'+zid+'\',\''+z.name+'\',showCardDeck)">📱 Scanner la carte</button>'
     +'<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal()">Annuler</button>')
 };
 window.submitZoneCard=async function(zid){
@@ -689,15 +712,16 @@ window.submitZoneCard=async function(zid){
   if(!v){notify('Numéro invalide — ex : 8 ou C08','var(--red)');return}
   await clearCardFor('zone:'+zid);
   await fbSet('/config/cardMap/'+v,'zone:'+zid);
-  notify('✅ Carte '+v+' → '+(gZ(zid)?.name||zid),'var(--green)');closeModal()
+  notify('✅ Carte '+v+' → '+(gZ(zid)?.name||zid),'var(--green)');showCardDeck()
 };
-window.waitForCardScan=function(target,displayName){
+window.waitForCardScan=function(target,displayName,onSuccess){
   showScanner(url=>{
     const m=url.match(/#qr:card:(C\d+)/);
     if(!m){notify('QR non reconnu — scanne une carte du deck','var(--red)');return}
     const cid=m[1];
     clearCardFor(target).then(()=>fbSet('/config/cardMap/'+cid,target)).then(()=>{
-      notify('✅ Carte '+cid+' → '+displayName,'var(--green)');renderTab()
+      notify('✅ Carte '+cid+' → '+displayName,'var(--green)');
+      if(onSuccess)onSuccess();else renderTab()
     })
   },'📷 Scanne la carte → '+displayName)
 };
