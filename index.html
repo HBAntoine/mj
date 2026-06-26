@@ -291,6 +291,11 @@ const DEF={
 let DB,DATA=null,ME=null,myId,myPin;
 let curTab='hero',timerIv=null,notifT=null,creating=false;
 let flow={mode:null,step:1,data:{name:'',classe:'',genre:'',pin:'',code:''}};
+// Cooldowns et pity 100% locaux — aucun write Firebase pendant le jeu
+let _localCooldowns={};
+let _localPity={fouille:0,vol:0,espionnage:0,parole:0,negociation:0};
+// Valeurs précédentes de ME pour détecter les vols
+let _prevMeGold=0,_prevMeHasObject=false;
 
 // ══ DEBOUNCE RENDER ══
 // Évite les re-renders en rafale quand plusieurs nœuds Firebase changent quasi-simultanément.
@@ -418,8 +423,8 @@ function fmtTs(ts){if(!ts)return'';const d=new Date(ts);return d.getHours().toSt
 function fmtMs(ms){const s=Math.ceil(ms/1000);return s>=60?Math.floor(s/60)+'m'+(s%60)+'s':s+'s'}
 function timerStr(){if(!DATA?.game?.timerEnd)return'--:--';const r=DATA.game.timerEnd-Date.now();if(r<=0)return'00:00';return Math.floor(r/60000).toString().padStart(2,'0')+':'+Math.floor((r%60000)/1000).toString().padStart(2,'0')}
 function cdMs(){return(DATA?.config?.timerMinutes||30)*0.12*60000}
-function cdOk(tid){return Date.now()-(ME?.cooldowns?.[tid]||0)>cdMs()}
-function cdLeft(tid){return Math.max(0,cdMs()-(Date.now()-(ME?.cooldowns?.[tid]||0)))}
+function cdOk(tid){return Date.now()-(_localCooldowns[tid]||0)>cdMs()}
+function cdLeft(tid){return Math.max(0,cdMs()-(Date.now()-(_localCooldowns[tid]||0)))}
 
 function spriteSrc(classe,genre,xp){return'Sprite/'+classe+'/'+classe+'_'+genre+'_'+STADES[stadeOf(xp||0)]+'.png'}
 function spriteFb(classe,genre){return'Sprite/'+classe+'/'+classe+'_'+genre+'.png'}
@@ -490,44 +495,43 @@ function _setupGranularListeners(){
     else scheduleRender('full');
   });
 
-  // ── /players/[myId] → MAJ immédiate de ME + notifications vol ──
-  DB.ref('/players/'+myId).on('value',snap=>{
+  // ── /players → child events — seul le joueur modifié est transmis (~1KB au lieu de N×1KB) ──
+  // child_added : nouveau joueur (aussi tiré au premier attach pour les joueurs existants)
+  DB.ref('/players').on('child_added',snap=>{
+    const id=snap.key,p=snap.val();
     if(!DATA)return;
-    const prevMe=ME;
-    ME=snap.val()||null;
-    if(ME){
-      if(!DATA.players)DATA.players={};
-      DATA.players[myId]=ME;
-    }
-    // Notifications victimes (vol d'objet, vol d'or) — temps réel, pas de debounce
-    if(ME&&prevMe){
-      if(prevMe.hasObject&&!ME.hasObject)notify('🤏 Quelqu\'un t\'a volé l\'OBJET !','var(--red)');
-      else if((ME.gold||0)<(prevMe.gold||0))notify('🤏 Tu as été volé ! −'+((prevMe.gold||0)-(ME.gold||0))+' 🪙','var(--red)');
-    }
-    // Auto-promotion admin si plus aucun admin
-    if(ME&&!ME.isAdmin){
-      const hasAdmin=Object.values(DATA.players||{}).some(p=>p.isAdmin);
-      if(!hasAdmin)DB.ref('/players/'+myId+'/isAdmin').set(true);
-    }
+    if(!DATA.players)DATA.players={};
+    DATA.players[id]=p;
+    if(id===myId){ME=p;_prevMeGold=p.gold||0;_prevMeHasObject=!!p.hasObject}
     if(creating)return;
-    if(_checkRoute()){scheduleRender('route')}
-    else scheduleRender('hero-partial');
+    scheduleRender(_checkRoute()?'route':(id===myId?'hero-partial':(curTab==='hero'?'hero-partial':'full')));
   });
-
-  // ── /players → liste joueurs (carte, journal, joueurs) — debounced ──
-  DB.ref('/players').on('value',snap=>{
+  // child_changed : un joueur existant a changé (seules ses données sont transmises)
+  DB.ref('/players').on('child_changed',snap=>{
+    const id=snap.key,p=snap.val();
     if(!DATA)return;
-    DATA.players=snap.val()||{};
-    ME=DATA.players[myId]||null;
-    if(creating)return;
-    const gameStatus=DATA.game?.status;
-    if(!gameStatus||gameStatus==='ended'){scheduleRender('route');return}
-    // Pendant la partie : mise à jour chirurgicale pour hero, full rebuild pour les autres tabs
-    if(gameStatus==='playing'){
-      scheduleRender(curTab==='hero'?'hero-partial':'full');
-    } else {
-      scheduleRender('full'); // lobby
+    if(!DATA.players)DATA.players={};
+    DATA.players[id]=p;
+    if(id===myId){
+      ME=p;
+      // Notifications victimes (vol d'objet, vol d'or)
+      if(_prevMeHasObject&&!p.hasObject)notify('🤏 Quelqu\'un t\'a volé l\'OBJET !','var(--red)');
+      else if((p.gold||0)<_prevMeGold)notify('🤏 Tu as été volé ! −'+(_prevMeGold-(p.gold||0))+' 🪙','var(--red)');
+      _prevMeGold=p.gold||0;_prevMeHasObject=!!p.hasObject;
+      // Auto-promotion admin
+      if(!p.isAdmin){const hasAdmin=Object.values(DATA.players||{}).some(q=>q.isAdmin);if(!hasAdmin)DB.ref('/players/'+myId+'/isAdmin').set(true)}
     }
+    if(creating)return;
+    if(_checkRoute()){scheduleRender('route');return}
+    scheduleRender(id===myId?'hero-partial':(curTab==='hero'?'hero-partial':'full'));
+  });
+  // child_removed : joueur parti
+  DB.ref('/players').on('child_removed',snap=>{
+    const id=snap.key;
+    if(!DATA||!DATA.players)return;
+    delete DATA.players[id];
+    if(creating)return;
+    scheduleRender('full');
   });
 
   // ── /events → seulement si l'onglet journal est actif ──
@@ -727,8 +731,10 @@ window.flowFinish=async function(){
   await fbSet('/players/'+myId,player);
   if(d.cardId&&!amAdmin)await fbSet('/config/cardMap/'+d.cardId,'player:'+myId);
   addEv('system',d.name+(amAdmin?' crée':'  rejoint')+' la partie',myId);
-  // Mise à jour locale de ME pour que render() puisse s'exécuter sans attendre le listener
+  // Reset local + MAJ immédiate de ME avant le listener Firebase
+  _localCooldowns={};_localPity={fouille:0,vol:0,espionnage:0,parole:0,negociation:0};
   ME=player;if(!DATA.players)DATA.players={};DATA.players[myId]=player;
+  _prevMeGold=player.gold||0;_prevMeHasObject=!!player.hasObject;
   creating=false;render()
 };
 
@@ -1345,7 +1351,7 @@ window.lockInv=function(){myPin=null;renderTab()};
 
 // ══ MOTEUR DE DÉS ══
 function rollDice(action,skillLvl){
-  const pity=ME?.pityCounts?.[action]||0;
+  const pity=_localPity[action]||0;
   const raw=Math.floor(Math.random()*20)+1;
   if(pity>=6)return{raw,modified:20,result:'critical',xp:3};
   const bonus=skillLvl+(pity>=4?7:pity>=2?3:0);
@@ -1377,8 +1383,8 @@ async function applyXP(skillKey,xpAmt){
   if(newS>oldS){notify('✨ '+STADES[newS]+' ! '+playerTitle({...ME,xp:newXp}),'var(--purple)');setTimeout(()=>{const el=document.querySelector('.hero-sprite');if(el){el.classList.add('levelup-anim');setTimeout(()=>el.classList.remove('levelup-anim'),1300)}},200)}
   await fbUpd('/players/'+myId,{xp:newXp,['skills/'+skillKey]:newSkillLvl,['skillXp/'+skillKey]:newSkillXp})
 }
-async function setPity(action,ok){await fbSet('/players/'+myId+'/pityCounts/'+action,ok?0:(ME?.pityCounts?.[action]||0)+1)}
-async function setCd(tid){await fbSet('/players/'+myId+'/cooldowns/'+tid,Date.now())}
+function setPity(action,ok){_localPity[action]=ok?0:(_localPity[action]||0)+1}
+function setCd(tid){_localCooldowns[tid]=Date.now()}
 
 // ══ ACTIONS DE JEU ══
 async function searchZone(zid){
@@ -1386,8 +1392,8 @@ async function searchZone(zid){
   if(!cdOk(zid+'_fouille')){notify('⏳ '+fmtMs(cdLeft(zid+'_fouille')),'var(--orange)');renderTab();return}
   const sl=ME?.skills?.fouille||0;
   const roll=rollDice('fouille',sl);
-  await fbSet('/players/'+myId+'/cooldowns/'+zid+'_fouille',Date.now());
-  await applyXP('fouille',roll.xp);await setPity('fouille',!roll.result.includes('fail'));
+  setCd(zid+'_fouille');
+  await applyXP('fouille',roll.xp);setPity('fouille',!roll.result.includes('fail'));
   await fbUpd('/players/'+myId,{zone:zid});
   let txt='',gold=0;
   if(roll.result.includes('fail')){
@@ -1416,7 +1422,7 @@ async function stealPlayer(tid){
   if(!cdOk(tid)){notify('⏳ '+fmtMs(cdLeft(tid)),'var(--orange)');return}
   const sl=ME?.skills?.vol||0,tgt=DATA.players[tid];
   const roll=rollDice('vol',sl);
-  await setCd(tid);await applyXP('vol',roll.xp);await setPity('vol',!roll.result.includes('fail'));
+  setCd(tid);await applyXP('vol',roll.xp);setPity('vol',!roll.result.includes('fail'));
   if(roll.result.includes('fail')){
     const pen=roll.result==='critical_fail'?Math.floor((ME.gold||0)*0.1):0;
     if(pen>0)await fbUpd('/players/'+myId,{gold:Math.max(0,(ME.gold||0)-pen)});
@@ -1447,7 +1453,7 @@ async function spyPlayer(tid){
   if(!cdOk(tid)){notify('⏳ '+fmtMs(cdLeft(tid)),'var(--orange)');return}
   const sl=ME?.skills?.espionnage||0,tgt=DATA.players[tid];
   const roll=rollDice('espionnage',sl);
-  await setCd(tid);await applyXP('espionnage',roll.xp);await setPity('espionnage',!roll.result.includes('fail'));
+  setCd(tid);await applyXP('espionnage',roll.xp);setPity('espionnage',!roll.result.includes('fail'));
   addEv('info',ME.name+' observe '+tgt.name,myId);
   if(roll.result.includes('fail')){
     const _fzl=Object.keys(gZL());const fz=_fzl[Math.floor(Math.random()*_fzl.length)];
@@ -1464,7 +1470,7 @@ async function talkPlayer(tid){
   if(!cdOk(tid)){notify('⏳ '+fmtMs(cdLeft(tid)),'var(--orange)');return}
   const sl=ME?.skills?.parole||0,tgt=DATA.players[tid];
   const roll=rollDice('parole',sl);
-  await setCd(tid);await applyXP('parole',roll.xp);await setPity('parole',!roll.result.includes('fail'));
+  setCd(tid);await applyXP('parole',roll.xp);setPity('parole',!roll.result.includes('fail'));
   addEv('info',ME.name+' parle avec '+tgt.name,myId);
   if(roll.result.includes('fail')){showDice(roll,tgt.name+' refuse de vous parler.\n"Laisse-moi tranquille !"');return}
   const opts=['Demander sa zone actuelle','Demander s\'il a l\'objet','Flatter pour obtenir une info'];
@@ -1478,7 +1484,7 @@ async function negotiatePlayer(tid){
   if(!cdOk(tid)){notify('⏳ '+fmtMs(cdLeft(tid)),'var(--orange)');return}
   const sl=ME?.skills?.parole||0,tgt=DATA.players[tid];
   const roll=rollDice('negociation',sl);
-  await setCd(tid);await applyXP('parole',roll.xp);await setPity('negociation',!roll.result.includes('fail'));
+  setCd(tid);await applyXP('parole',roll.xp);setPity('negociation',!roll.result.includes('fail'));
   addEv('info',ME.name+' négocie avec '+tgt.name,myId);
   if(roll.result.includes('fail')){
     if(roll.result==='critical_fail'&&sl<2){await fbUpd('/players/'+myId,{gold:Math.max(0,(ME.gold||0)-10)});notify('Arnaque ratée −10 🪙','var(--red)')}
@@ -1532,9 +1538,10 @@ window.confirmReset=function(){showModal('<div style="text-align:center;margin-b
   +'<button class="btn btn-gray" onclick="closeModal()">Annuler</button>')};
 window.doReset=async function(){
   closeModal();const code=genCode();
+  _localCooldowns={};_localPity={fouille:0,vol:0,espionnage:0,parole:0,negociation:0};
   const kept=Object.fromEntries(Object.entries(DATA.players||{}).map(([id,p])=>
     [id,{...p,gold:0,hasObject:false,xp:0,skills:{fouille:0,vol:0,espionnage:0,parole:0},skillXp:{fouille:0,vol:0,espionnage:0,parole:0},
-      pityCounts:{fouille:0,vol:0,espionnage:0,parole:0,negociation:0},cooldowns:{},zone:null}]));
+      pityCounts:{},cooldowns:{},zone:null}]));
   await DB.ref('/').set({...DEF,config:{...DEF.config,timerMinutes:DATA.config?.timerMinutes||30,gameCode:code,gameId:Date.now()},players:kept});
   notify('Nouvelle partie — Code : '+code,'var(--green)')
 };
