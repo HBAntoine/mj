@@ -962,7 +962,8 @@ window.onZoneCarte=function(zid){
     +'</div>'
     +(isMine?'<button class="btn btn-green" style="margin-bottom:8px" onclick="doFouille()"'+(canFouille?'':' disabled')+'>🔍 Fouiller</button>'
       +(ME?.hasObject?'<button class="btn btn-gray" style="margin-bottom:8px" onclick="closeModal();doHideObj(\''+zid+'\')">🙈 Cacher l\'objet</button>':'')
-      :'<button class="btn btn-blue" style="margin-bottom:8px" onclick="moveZone(\''+zid+'\')">📍 Se déplacer ici</button>')
+      :(isAdmin()?'<button class="btn btn-blue" style="margin-bottom:8px" onclick="moveZone(\''+zid+'\')">📍 Se déplacer ici</button>'
+        :'<button class="btn btn-gray" style="margin-bottom:8px" onclick="closeModal();openGameScanner()">📷 Scanner le QR de cette zone</button>'))
     +'<button class="btn btn-gray" onclick="closeModal()">Fermer</button>')
 };
 window.doHideObj=async function(zid){
