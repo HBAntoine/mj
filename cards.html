@@ -168,12 +168,9 @@ function generatePages() {
       var nums = [];
       for (var i = start; i <= Math.min(start + 8, 100); i++) nums.push(i);
       container.appendChild(buildRectoPage(nums));
+      var vOffset = (nums.length < 9) ? 2 : 0;
+      container.appendChild(buildVersoPage(nums.length, vOffset));
       nums.forEach(function(n) { toGen.push(n); });
-    }
-    for (var p = 0; p < 12; p++) {
-      var start = p * 9 + 1;
-      var count = Math.min(9, 101 - start);
-      container.appendChild(buildVersoPage(count, 0));
     }
   }
 
