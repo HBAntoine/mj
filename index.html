@@ -313,7 +313,9 @@ function scheduleRender(type){
     const gameStatus=DATA.game?.status;
     if(!gameStatus||gameStatus==='ended'||!DATA.config?.gameCode||!ME){render();return}
     if(gameStatus==='lobby'){renderWait();return}
-    // Partie en cours — mise à jour chirurgicale si possible
+    // Partie en cours — si l'interface de jeu n'est pas encore montée (premier chargement / refresh),
+    // render() l'initialise via renderGame() avant toute mise à jour partielle
+    if(!document.getElementById('sc')){render();return}
     if(p==='hero-partial'&&curTab==='hero'){
       _heroPartialUpdate();
     } else {
