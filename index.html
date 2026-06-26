@@ -8,8 +8,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>MJ — Maître du Jeu</title>
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 </head>
@@ -75,6 +77,13 @@ html,body{height:100%;background:var(--bg);color:var(--white);font-family:'Nunit
 .xp-bar{background:var(--dim);height:8px;border-radius:4px;overflow:hidden;margin:6px 0}
 .xp-fill{height:100%;transition:width .6s ease;border-radius:4px}
 .xp-label{font-size:10px;color:var(--gray);text-align:center;margin-bottom:14px}
+/* QR Scanner */
+.qr-wrap{position:relative;background:#000;border-radius:10px;overflow:hidden;width:100%;aspect-ratio:1;max-width:280px;margin:0 auto}
+.qr-wrap video{width:100%;height:100%;object-fit:cover;display:block}
+.qr-finder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.qr-finder-box{width:55%;aspect-ratio:1;border:2.5px solid var(--gold);border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,.45)}
+@keyframes scan-line{0%{top:10%}100%{top:90%}}
+.qr-scan-line{position:absolute;left:22%;right:22%;height:2px;background:var(--gold);opacity:.7;animation:scan-line 1.5s ease-in-out infinite alternate}
 
 /* Action buttons */
 .hero-actions{width:100%;margin-top:4px}
@@ -380,14 +389,11 @@ window.confirmJoinCard=function(){
   _startJoinFlow(v)
 };
 window.scanJoinCard=function(){
-  localStorage.setItem('mj_pending_assign',JSON.stringify({target:'pending_join',name:'join'}));
-  // Remplace le contenu du modal par "En attente du scan..."
-  document.querySelector('.mo').innerHTML=
-    '<div style="text-align:center;padding:8px 0">'
-    +'<div style="font-size:48px;margin-bottom:12px">📱</div>'
-    +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gold);margin-bottom:10px">Scanne ta carte</div>'
-    +'<div style="font-size:12px;color:var(--gray);margin-bottom:16px">Ouvre l\'appareil photo et scanne le QR code de ta carte.</div>'
-    +'<button class="btn btn-gray" onclick="closeModal();localStorage.removeItem(\'mj_pending_assign\')">Annuler</button></div>'
+  showScanner(url=>{
+    const m=url.match(/#qr:card:(C\d+)/);
+    if(!m){notify('QR non reconnu — scanne une carte du deck','var(--red)');return}
+    _startJoinFlow(m[1])
+  },'📷 Scanne ta carte joueur')
 };
 function _startJoinFlow(cardId){
   closeModal();
@@ -680,12 +686,14 @@ window.submitZoneCard=async function(zid){
   notify('✅ Carte '+v+' → '+(gZ(zid)?.name||zid),'var(--green)');closeModal()
 };
 window.waitForCardScan=function(target,displayName){
-  localStorage.setItem('mj_pending_assign',JSON.stringify({target,name:displayName}));
-  showModal('<div style="text-align:center;padding:12px">'
-    +'<div style="font-size:48px;margin-bottom:12px">📱</div>'
-    +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gold);margin-bottom:8px">Scanne une carte</div>'
-    +'<div style="font-size:12px;color:var(--gray)">Sera assignée à : <b>'+displayName+'</b></div></div>'
-    +'<button class="btn btn-gray" style="margin-top:12px" onclick="closeModal();localStorage.removeItem(\'mj_pending_assign\')">Annuler</button>')
+  showScanner(url=>{
+    const m=url.match(/#qr:card:(C\d+)/);
+    if(!m){notify('QR non reconnu — scanne une carte du deck','var(--red)');return}
+    const cid=m[1];
+    clearCardFor(target).then(()=>fbSet('/config/cardMap/'+cid,target)).then(()=>{
+      notify('✅ Carte '+cid+' → '+displayName,'var(--green)');renderTab()
+    })
+  },'📷 Scanne la carte → '+displayName)
 };
 
 // ── Vue globale du deck (admin) ──
@@ -721,7 +729,7 @@ window.scanMyCard=function(){
     +'<input id="my-card-inp" class="inp" style="flex:1;margin:0;text-transform:uppercase" placeholder="C07" maxlength="4" autocomplete="off">'
     +'<button class="btn btn-gold btn-sm" onclick="submitMyCard()">OK</button></div>'
     +'<div style="font-size:10px;color:var(--gray);margin-bottom:14px">— ou scanne ta carte avec la caméra —</div>'
-    +'<button class="btn btn-blue" onclick="waitForCardScan(\'player:'+myId+'\',\''+( ME?.name||'moi')+'\')">📱 Scanner ma carte</button>'
+    +'<button class="btn btn-blue" onclick="waitForCardScan(\'player:\'+myId,ME?.name||\'moi\')">📷 Scanner ma carte</button>'
     +'<button class="btn btn-gray" style="margin-top:8px" onclick="closeModal()">Annuler</button>')
 };
 window.submitMyCard=async function(){
@@ -746,47 +754,12 @@ window.showMyQR=function(){
     +'<button class="btn btn-gray" style="margin-top:12px" onclick="closeModal()">Fermer</button>')
 };
 
-// ══ SCAN QR (via hash URL) ══
+// ══ SCAN QR (via hash URL — fallback si scan externe) ══
 function handleHash(){
   const h=location.hash;
   if(!h.startsWith('#qr:'))return;
   location.hash='';
-  const parts=h.slice(4).split(':');
-  // Vérifier si quelqu'un attend une assignation (via localStorage partagé)
-  const pending=JSON.parse(localStorage.getItem('mj_pending_assign')||'null');
-  if(parts[0]==='card'&&pending){
-    localStorage.removeItem('mj_pending_assign');
-    const cid=parts[1];
-    // Cas spécial : joueur en cours de rejoindre la partie
-    if(pending.target==='pending_join'){
-      // Même onglet : flow actif
-      if(creating){_startJoinFlow(cid);return}
-      // Onglet différent : signal via localStorage
-      localStorage.setItem('mj_join_card_result',cid);
-      notify('✅ Carte '+cid+' reconnue — reviens sur l\'onglet du jeu','var(--green)');return
-    }
-    clearCardFor(pending.target).then(()=>fbSet('/config/cardMap/'+cid,pending.target)).then(()=>{
-      notify('✅ Carte '+cid+' liée à '+pending.name,'var(--green)');
-      closeModal();renderTab()
-    });return
-  }
-  if(!DATA||!ME){notify('Connecte-toi d\'abord','var(--orange)');return}
-  if(parts[0]==='card'){
-    const assign=DATA?.config?.cardMap?.[parts[1]];
-    if(!assign){notify('Carte non assignée — demande à l\'admin','var(--orange)');return}
-    const[type,ref]=assign.split(':');
-    if(type==='zone'){if(!gZ(ref)){notify('Zone inconnue','var(--red)');return}moveZone(ref)}
-    else if(type==='player'){if(ref===myId){notify('C\'est ta propre carte !','var(--gray)');return}onPlayer(ref)}
-  } else if(parts[0]==='zone'){
-    const zid=parts[1];
-    if(!gZ(zid)){notify('Zone inconnue','var(--red)');return}
-    moveZone(zid)
-  } else if(parts[0]==='player'){
-    const tid=parts[1];
-    if(tid===myId){notify('C\'est ton propre QR !','var(--gray)');return}
-    const p=DATA.players?.[tid];if(!p){notify('Joueur introuvable','var(--red)');return}
-    onPlayer(tid)
-  }
+  _doQRParts(h.slice(4).split(':'))
 }
 window.addEventListener('hashchange',handleHash);
 window.confirmDelete=function(){showModal('<div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:800">Supprimer la partie ?</div>'
@@ -809,6 +782,7 @@ function gameHdr(){
     +'<div class="ghdr-timer'+(warn?' warn':'')+'">'+timerStr()+'</div>'
     +'<div class="ghdr-right">'
     +(ME?.hasObject?'<span class="badge badge-obj">🗝️ Objet</span>':'')
+    +'<button onclick="openGameScanner()" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--gold);font-size:18px;padding:4px 8px;cursor:pointer;line-height:1" title="Scanner un QR code">📷</button>'
     +(isAdmin()?'<button onclick="adminEnd()" style="background:var(--red);border:none;border-radius:4px;color:#fff;font-size:11px;font-weight:800;padding:5px 10px;cursor:pointer">⏹️ Stop</button>':'')
     +'</div></div>'
 }
@@ -1395,8 +1369,81 @@ window.adminStart=async function(){
 
 // ══ MODAL ══
 function showModal(html){closeModal();const bd=document.createElement('div');bd.className='mb';bd.innerHTML='<div class="mo">'+html+'</div>';bd.addEventListener('click',e=>{if(e.target===bd)closeModal()});document.body.appendChild(bd)}
-function closeModal(){document.querySelector('.mb')?.remove()}
+function closeModal(){_stopScanHard();document.querySelector('.mb')?.remove()}
 window.closeModal=closeModal;
+
+// ══ SCANNER IN-APP (jsQR) ══
+let _scanStream=null,_scanIv=null;
+function _stopScanHard(){clearInterval(_scanIv);_scanIv=null;if(_scanStream){_scanStream.getTracks().forEach(t=>t.stop());_scanStream=null}}
+window.stopScanner=function(){_stopScanHard();closeModal()};
+
+function showScanner(onResult,title){
+  title=title||'📷 Scanner un QR code';
+  showModal('<div class="ct">'+title+'</div>'
+    +'<div class="qr-wrap"><video id="qr-vid" autoplay playsinline muted></video>'
+    +'<canvas id="qr-cvs" style="display:none"></canvas>'
+    +'<div class="qr-finder"><div class="qr-finder-box"></div></div>'
+    +'<div class="qr-scan-line"></div></div>'
+    +'<div id="qr-status" style="text-align:center;font-size:11px;color:var(--gray);margin:10px 0">Pointe la caméra vers un QR code...</div>'
+    +'<button class="btn btn-gray" onclick="stopScanner()">Annuler</button>');
+  if(!navigator.mediaDevices?.getUserMedia){
+    notify('Caméra non disponible sur ce navigateur','var(--red)');closeModal();return
+  }
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}}})
+    .then(stream=>{
+      _scanStream=stream;
+      const vid=document.getElementById('qr-vid');
+      if(!vid){_stopScanHard();return}
+      vid.srcObject=stream;
+      _scanIv=setInterval(()=>{
+        const v=document.getElementById('qr-vid'),c=document.getElementById('qr-cvs');
+        if(!v||!c||v.readyState<2)return;
+        c.width=v.videoWidth;c.height=v.videoHeight;
+        const ctx=c.getContext('2d');ctx.drawImage(v,0,0);
+        const img=ctx.getImageData(0,0,c.width,c.height);
+        const code=typeof jsQR==='function'&&jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
+        if(code&&code.data){_stopScanHard();closeModal();onResult(code.data)}
+      },200)
+    })
+    .catch(()=>{notify('Autorise l\'accès à la caméra dans ton navigateur','var(--red)');closeModal()})
+}
+
+// Traite les données scannées (URL #qr:...) — partagé scanner in-app + handleHash
+function _doQRParts(parts){
+  const pending=JSON.parse(localStorage.getItem('mj_pending_assign')||'null');
+  if(parts[0]==='card'&&pending){
+    localStorage.removeItem('mj_pending_assign');
+    const cid=parts[1];
+    if(pending.target==='pending_join'){
+      if(creating){_startJoinFlow(cid);return}
+      localStorage.setItem('mj_join_card_result',cid);
+      notify('✅ Carte '+cid+' reconnue — reviens sur l\'onglet du jeu','var(--green)');return
+    }
+    clearCardFor(pending.target).then(()=>fbSet('/config/cardMap/'+cid,pending.target)).then(()=>{
+      notify('✅ Carte '+cid+' → '+pending.name,'var(--green)');renderTab()
+    });return
+  }
+  if(!DATA||!ME){notify('Connecte-toi d\'abord','var(--orange)');return}
+  if(parts[0]==='card'){
+    const assign=DATA?.config?.cardMap?.[parts[1]];
+    if(!assign){notify('Carte non assignée — demande à l\'admin','var(--orange)');return}
+    const[type,ref]=assign.split(':');
+    if(type==='zone'){if(!gZ(ref)){notify('Zone inconnue','var(--red)');return}moveZone(ref)}
+    else if(type==='player'){if(ref===myId){notify('C\'est ta propre carte !','var(--gray)');return}onPlayer(ref)}
+  } else if(parts[0]==='zone'){
+    const zid=parts[1];if(!gZ(zid)){notify('Zone inconnue','var(--red)');return}moveZone(zid)
+  } else if(parts[0]==='player'){
+    const tid=parts[1];if(tid===myId){notify('C\'est ton propre QR !','var(--gray)');return}
+    const p=DATA.players?.[tid];if(!p){notify('Joueur introuvable','var(--red)');return}onPlayer(tid)
+  } else {notify('QR non reconnu','var(--orange)')}
+}
+function _parseQRUrl(url){
+  const idx=url.indexOf('#qr:');
+  if(idx===-1){notify('QR non reconnu','var(--orange)');return}
+  _doQRParts(url.slice(idx+4).split(':'))
+}
+// Scanner universel (pendant la partie)
+window.openGameScanner=function(){showScanner(_parseQRUrl,'📷 Scanner')};
 
 // ══ TIMER ══
 function startTimer(){
