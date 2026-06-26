@@ -84,6 +84,10 @@ html,body{height:100%;background:var(--bg);color:var(--white);font-family:'Nunit
 .qr-finder-box{width:55%;aspect-ratio:1;border:2.5px solid var(--gold);border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,.45)}
 @keyframes scan-line{0%{top:10%}100%{top:90%}}
 .qr-scan-line{position:absolute;left:22%;right:22%;height:2px;background:var(--gold);opacity:.7;animation:scan-line 1.5s ease-in-out infinite alternate}
+#install-banner{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(135deg,#1a1a3a,#2a2a5a);border-top:1.5px solid var(--gold);padding:12px 14px;display:flex;align-items:center;gap:10px;z-index:9000;animation:slide-up .35s ease}
+@keyframes slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+#install-banner .ib-txt{flex:1;font-size:11px;color:var(--fg);line-height:1.5}
+#install-banner .ib-txt b{color:var(--gold)}
 
 /* Action buttons */
 .hero-actions{width:100%;margin-top:4px}
@@ -1454,6 +1458,32 @@ function startTimer(){
     if(isAdmin()&&DATA?.game?.timerEnd&&Date.now()>=DATA.game.timerEnd)checkVictory()
   },1000)
 }
+
+// ══ PWA INSTALL BANNER ══
+let _deferredInstall=null;
+const _isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+const _isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_deferredInstall=e;_showInstallBanner('android')});
+window.addEventListener('appinstalled',()=>{document.getElementById('install-banner')?.remove();localStorage.setItem('mj_install_done','1')});
+
+function _showInstallBanner(platform){
+  if(_isStandalone||localStorage.getItem('mj_install_done'))return;
+  if(document.getElementById('install-banner'))return;
+  const d=document.createElement('div');d.id='install-banner';
+  const btn=s=>'<button onclick="'+s+'" style="background:var(--gold);border:none;border-radius:6px;color:#0a0a1a;font-size:11px;font-weight:800;padding:6px 12px;cursor:pointer;white-space:nowrap">';
+  const x='<button onclick="_hideInstallBanner()" style="background:none;border:none;color:var(--gray);font-size:18px;padding:0 4px;cursor:pointer;line-height:1">✕</button>';
+  if(platform==='ios'){
+    d.innerHTML='<span style="font-size:22px">📲</span><span class="ib-txt">Ajoute MJ à l\'écran d\'accueil :<br><b>Partager ↑</b> → <b>"Sur l\'écran d\'accueil"</b></span>'+x;
+  }else{
+    d.innerHTML='<span style="font-size:22px">📲</span><span class="ib-txt"><b>Installer MJ</b> comme application</span>'+btn('_triggerInstall()')+'Installer</button>'+x;
+  }
+  document.body.appendChild(d);
+}
+window._hideInstallBanner=function(){document.getElementById('install-banner')?.remove();localStorage.setItem('mj_install_done','1')};
+window._triggerInstall=function(){if(!_deferredInstall)return;_deferredInstall.prompt();_deferredInstall.userChoice.then(r=>{if(r.outcome==='accepted')_hideInstallBanner();_deferredInstall=null})};
+
+if(_isIOS&&!_isStandalone)setTimeout(()=>_showInstallBanner('ios'),2500);
 
 // ══ INIT ══
 document.getElementById('app').innerHTML='<div class="loading"><div class="loading-title">MJ</div><div class="loading-sub">Connexion...</div></div>';
