@@ -35,7 +35,7 @@ body { background: #1a1a2e; font-family: sans-serif; color: #eee; }
 
 .page {
   width: 210mm; height: 297mm;
-  padding: 10.5mm 7.5mm 7.5mm 7.5mm;
+  padding: 13.5mm 7.5mm;
   background: white;
   display: grid;
   grid-template-columns: repeat(3, 63mm);
@@ -47,6 +47,7 @@ body { background: #1a1a2e; font-family: sans-serif; color: #eee; }
 }
 
 .card { position: relative; width: 63mm; height: 88mm; overflow: hidden; }
+.page-verso .card { transform: scaleX(-1); transform-origin: center center; }
 .card-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
 .card-num {
   position: absolute; top: 28%; left: 0; right: 0;
@@ -70,7 +71,7 @@ body { background: #1a1a2e; font-family: sans-serif; color: #eee; }
   .no-print { display: none !important; }
   .page {
     width: 210mm; height: 297mm;
-    padding: 10.5mm 7.5mm 7.5mm 7.5mm;
+    padding: 13.5mm 7.5mm;
     margin: 0; display: grid;
     grid-template-columns: repeat(3, 63mm);
     grid-template-rows: repeat(3, 88mm);
@@ -201,7 +202,15 @@ function toggleMode() {
     badge.className = 'mode-badge';
     btn.textContent = 'Passer en mode 100 cartes';
   }
-  generatePages();
+  // Vérification math au démarrage
+(function() {
+  var pT = 13.5, pB = 13.5, rows = 3*88, gaps = 2*3;
+  console.log("Padding V total:", pT+pB+"mm");
+  console.log("Grille H:", rows+gaps+"mm = 270mm");
+  console.log("Total page:", (pT + rows + gaps + pB)+"mm (doit = 297)");
+})();
+
+generatePages();
 }
 
 function printAll()      { window.print(); }
@@ -210,6 +219,14 @@ function printSide(side) {
   window.print();
   document.body.classList.remove('print-' + side);
 }
+
+// Vérification math au démarrage
+(function() {
+  var pT = 13.5, pB = 13.5, rows = 3*88, gaps = 2*3;
+  console.log("Padding V total:", pT+pB+"mm");
+  console.log("Grille H:", rows+gaps+"mm = 270mm");
+  console.log("Total page:", (pT + rows + gaps + pB)+"mm (doit = 297)");
+})();
 
 generatePages();
 </script>
