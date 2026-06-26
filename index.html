@@ -354,14 +354,10 @@ function render(){
 // ══ HOME ══
 function renderHome(){
   creating=false;flow={mode:null,step:1,data:{name:'',classe:'',genre:'',pin:'',code:''}};
-  const code=DATA?.config?.gameCode,hasGame=code&&DATA?.game?.status==='lobby';
   document.getElementById('app').innerHTML='<div class="flow"><div class="flow-inner" style="text-align:center">'
     +'<div style="margin:8px 0 32px"><div class="flow-title" style="font-size:22px;margin-bottom:4px">MJ</div>'
     +'<div style="font-family:\'Press Start 2P\';font-size:9px;color:var(--gray);margin-bottom:10px">Maître du Jeu</div>'
     +'<div style="font-size:12px;color:var(--gray)">Jeu grandeur nature JRPG</div></div>'
-    +(hasGame?'<div style="background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:14px;margin-bottom:20px">'
-      +'<div style="font-size:11px;color:var(--gray);margin-bottom:6px">Partie en cours</div>'
-      +'<div class="wait-code">'+code+'</div></div>':'')
     +'<button class="btn btn-gold" style="margin-bottom:12px" onclick="startFlow(\'create\')">🎮 Créer une partie</button>'
     +'<button class="btn btn-blue" onclick="startFlow(\'join\')">🔑 Rejoindre une partie</button>'
     +'</div></div>'
