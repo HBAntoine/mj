@@ -98,8 +98,8 @@ body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #eee; 
 .corner.bl { bottom: 2.5mm; left: 2.5mm; }
 .corner.br { bottom: 2.5mm; right: 2.5mm; }
 
-/* ── VERSO : miroir horizontal de la page entiere ── */
-.page-verso { transform: scaleX(-1); }
+/* VERSO : pas de transform — le duplex auto gere le retournement */
+.page-verso { }
 
 .card-back { width: 63mm; height: 88mm; display: block; }
 .card-back img { width: 100%; height: 100%; display: block; object-fit: fill; }
@@ -148,16 +148,16 @@ body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #eee; 
 </div>
 
 <div id="instructions" class="no-print">
-  <h3>IMPRESSION RECTO-VERSO MANUELLE</h3>
+  <h3>IMPRESSION RECTO-VERSO</h3>
   <ol>
-    <li><b>Etape 1</b> &mdash; Clique <b>"Imprimer recto seulement"</b> &rarr; imprime les pages 1 &agrave; 12 (QR codes)</li>
-    <li><b>Etape 2</b> &mdash; Retourne la pile et reinsere dans le bac
-      (<b>face imprimee vers le bas, bord du haut en premier</b>)</li>
-    <li><b>Etape 3</b> &mdash; Clique <b>"Imprimer verso seulement"</b> &rarr; imprime les pages 13 &agrave; 24 (dos de cartes)</li>
+    <li>Clique <b>"Imprimer tout (recto + verso)"</b></li>
+    <li>Dans la boite de dialogue, active <b>Recto-verso / Impression des deux cotes</b></li>
+    <li>Retournement sur le <b>bord long</b> (standard portrait)</li>
+    <li>Lance l'impression &mdash; les pages sont deja intercalees (recto/verso/recto/verso&hellip;)</li>
   </ol>
   <div class="note">
-    Les pages verso sont en miroir horizontal (scaleX -1) pour compenser le retournement physique.
-    Chaque QR code se retrouve dos-a-dos avec son dos de carte apres decoupe.
+    Les boutons "recto seulement" et "verso seulement" sont utiles pour reimprimer une serie.
+    Avec le duplex auto active, chaque feuille A4 = QR codes au recto + dos de carte au verso.
   </div>
 </div>
 
@@ -205,44 +205,49 @@ function printVerso() {
 
 const container = document.getElementById('cards');
 
-/* PAGES RECTO (1-12) */
-let pageDiv = null;
-for (let i = 1; i <= TOTAL; i++) {
-  if ((i - 1) % PER_PAGE === 0) {
-    pageDiv = document.createElement('div');
-    pageDiv.className = 'page page-recto';
-    container.appendChild(pageDiv);
-  }
-  const cid   = 'C' + pad(i);
-  const url   = APP_URL + '#qr:card:' + cid;
-  const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=4&color=1a0a3a&bgcolor=ffffff&data=' + encodeURIComponent(url);
-
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML =
-    '<div class="card-inner">' +
-      '<span class="corner tl">✶</span><span class="corner tr">✶</span>' +
-      '<span class="corner bl">✶</span><span class="corner br">✶</span>' +
-      '<div class="card-header">' +
-        '<span class="card-deco">⚔</span>' +
-        '<span class="card-logo">Maître du Jeu</span>' +
-        '<span class="card-deco">⚔</span>' +
-      '</div>' +
-      '<div class="card-qr"><img src="' + qrUrl + '" width="150" height="150" alt="' + cid + '"></div>' +
-      '<div class="card-footer">' +
-        '<div class="card-id">' + cid + '</div>' +
-        '<div class="card-sub">Scanner avec l\'app</div>' +
-      '</div>' +
-    '</div>';
-
-  const img = card.querySelector('img');
-  img.addEventListener('load',  updateProgress);
-  img.addEventListener('error', updateProgress);
-  pageDiv.appendChild(card);
-}
-
-/* PAGES VERSO (13-24) — miroir via CSS .page-verso { transform: scaleX(-1) } */
+/* Pages INTERCALEES : recto1, verso1, recto2, verso2…
+   L'imprimante duplex imprime la page paire au dos de la page impaire.
+   Resultat : chaque feuille A4 = QR codes recto + dos de cartes verso. */
 for (let p = 0; p < PAGES; p++) {
+  const startCard = p * PER_PAGE + 1;
+
+  /* --- RECTO --- */
+  const rPage = document.createElement('div');
+  rPage.className = 'page page-recto';
+
+  for (let c = 0; c < PER_PAGE; c++) {
+    const i = startCard + c;
+    if (i > TOTAL) break;
+    const cid   = 'C' + pad(i);
+    const url   = APP_URL + '#qr:card:' + cid;
+    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=4&color=1a0a3a&bgcolor=ffffff&data=' + encodeURIComponent(url);
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<div class="card-inner">' +
+        '<span class="corner tl">✶</span><span class="corner tr">✶</span>' +
+        '<span class="corner bl">✶</span><span class="corner br">✶</span>' +
+        '<div class="card-header">' +
+          '<span class="card-deco">⚔</span>' +
+          '<span class="card-logo">Maître du Jeu</span>' +
+          '<span class="card-deco">⚔</span>' +
+        '</div>' +
+        '<div class="card-qr"><img src="' + qrUrl + '" width="150" height="150" alt="' + cid + '"></div>' +
+        '<div class="card-footer">' +
+          '<div class="card-id">' + cid + '</div>' +
+          '<div class="card-sub">Scanner avec l\'app</div>' +
+        '</div>' +
+      '</div>';
+
+    const img = card.querySelector('img');
+    img.addEventListener('load',  updateProgress);
+    img.addEventListener('error', updateProgress);
+    rPage.appendChild(card);
+  }
+  container.appendChild(rPage);
+
+  /* --- VERSO (immediatement apres le recto correspondant) --- */
   const vPage = document.createElement('div');
   vPage.className = 'page page-verso';
   for (let c = 0; c < PER_PAGE; c++) {
