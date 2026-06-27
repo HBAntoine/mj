@@ -5,6 +5,7 @@
 <title>MJ — Cartes QR</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: #1a1a2e; font-family: sans-serif; color: #eee; }
@@ -117,6 +118,22 @@ body { background: #1a1a2e; font-family: sans-serif; color: #eee; }
 .sim-note  { font-size: 10px; color: #aaa; text-align: center; max-width: 280px; line-height: 1.6; }
 .sim-slider { width: 220px; margin-top: 6px; }
 .sim-pct   { font-size: 11px; color: #aaa; }
+/* PDF CONTROLS */
+.pdf-section { margin-top:16px; border-top:1px solid #3a3a6a; padding-top:14px; }
+.pdf-section-title { font-size:11px; color:#ffe066; font-weight:800; margin-bottom:12px; }
+.pdf-ctrl-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; justify-content:center; }
+.pdf-label { font-size:11px; color:#aaa; white-space:nowrap; }
+.pdf-hint  { font-size:10px; color:#666; }
+.nb-inp { width:64px; padding:5px 8px; background:#2a2a3a; border:1px solid #5a5a8a; border-radius:4px; color:#ffe066; font-size:14px; font-weight:800; text-align:center; }
+.drift-box { background:#1a1a3a; border:1px solid #3a3a6a; border-radius:6px; padding:10px 14px; margin-bottom:10px; text-align:left; }
+.drift-box-title { font-size:10px; color:#ffe066; font-weight:800; margin-bottom:8px; }
+.drift-preview { font-size:10px; color:#888; line-height:1.9; background:#12122a; padding:8px 10px; border-radius:4px; margin-bottom:8px; }
+.btn-drift { background:#2a2a3a; border:1px solid #5a5a7a; color:#aaa; padding:5px 14px; border-radius:4px; font-size:11px; cursor:pointer; }
+.btn-pdf-main  { background:#4040c0; color:#fff; }
+.btn-pdf-calib { background:#2a5a2a; color:#aff; }
+.btn-pdf-1row  { background:#5a2a2a; color:#faa; }
+.btn-sim { background:#2a3a4a; color:#8cf; font-size:11px; }
+
 /* PRINT */
 @page { size: A4 portrait; margin: 0; }
 @media print {
@@ -149,17 +166,38 @@ body { background: #1a1a2e; font-family: sans-serif; color: #eee; }
 <div class="no-print">
   <h1>MJ &mdash; Cartes QR</h1>
   <div class="mode-badge" id="mode-badge">MODE TEST &mdash; 1 carte</div>
-  <div class="btn-row">
-    <button class="btn-all"  onclick="window.print()">Imprimer test (2 pages)</button>
+  <div class="btn-row" style="margin-bottom:8px">
     <button class="btn-mode" id="btn-mode" onclick="toggleMode()">Passer en mode 100 cartes</button>
     <button class="btn-sim" onclick="openSim()">&#128269; Simuler superposition</button>
   </div>
-  <div class="instructions">
-    <b>Test 1 carte &mdash; position 3 (coin haut-droite)</b><br>
-    Recto-verso manuel :<br>
-    1. Imprimez cette page (recto)<br>
-    2. Retournez la feuille A4, r&eacute;ins&eacute;rez<br>
-    3. Imprimez &agrave; nouveau (verso)
+  <div class="pdf-section">
+    <div class="pdf-section-title">&#128229; G&eacute;n&eacute;ration PDF</div>
+    <div class="pdf-ctrl-row">
+      <label class="pdf-label">Nb de cartes :</label>
+      <input type="number" id="nb-cards" min="1" max="100" value="100" class="nb-inp" oninput="updateNbDisplay()">
+      <span class="pdf-hint">(1&ndash;100)</span>
+    </div>
+    <div class="drift-box">
+      <div class="drift-box-title">&#127919; Calibration d&eacute;rive duplex</div>
+      <div class="pdf-ctrl-row" style="margin-bottom:6px">
+        <label class="pdf-label">D&eacute;rive / ligne :</label>
+        <input type="range" id="drift-slider" min="-30" max="30" step="1" value="0" oninput="updateDriftUI()" style="width:150px;accent-color:#4ff">
+        <span id="drift-val" style="font-family:monospace;color:#4ff;min-width:36px;font-weight:800">0.0</span>
+        <span class="pdf-label">mm</span>
+      </div>
+      <div class="drift-preview">
+        Ligne&nbsp;1 verso : 0mm (r&eacute;f&eacute;rence)<br>
+        Ligne&nbsp;2 verso : <span id="drift-ln2">+0.0mm</span><br>
+        Ligne&nbsp;3 verso : <span id="drift-ln3">+0.0mm</span>
+      </div>
+      <button class="btn-drift" onclick="saveDrift()">&#128190; Sauvegarder d&eacute;rive</button>
+    </div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn-pdf-main" onclick="genPDF()">&#128424; G&eacute;n&eacute;rer PDF (<span id="nb-display">100</span> cartes) &mdash; 3&times;3</button>
+      <button class="btn-pdf-calib" onclick="genCalibPDF()">&#127919; Test calibration (9 cartes, 2 pages)</button>
+      <button class="btn-pdf-1row" onclick="genPDF1row()">&#128196; 1 ligne par page (sans d&eacute;rive)</button>
+    </div>
+    <div id="pdf-status" style="font-size:11px;min-height:18px;margin-top:6px"></div>
   </div>
 </div>
 
@@ -350,6 +388,131 @@ function showSimTab(idx) {
   });
 }
 generatePages();
+// ── PDF GENERATION (jsPDF) ──────────────────────────────────────
+var _qrCache = {};
+var PDF_CARD_W = 63, PDF_CARD_H = 88;
+var PDF_COL_X   = [7.5,  73.5, 139.5];
+var PDF_ROW_Y   = [13.5, 104.5, 195.5];
+var PDF_MIRROR_X = [139.5, 73.5, 7.5]; // 210 - x - 63
+
+function _genQRDataURL(n) {
+  if (_qrCache[n]) return _qrCache[n];
+  var div = document.createElement('div');
+  div.style.cssText = 'position:absolute;left:-9999px;top:-9999px;';
+  document.body.appendChild(div);
+  new QRCode(div, { text: APP_URL + '#qr:card:' + lbl(n), width: 300, height: 300,
+    colorDark: '#1a1a2e', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  var canvas = div.querySelector('canvas');
+  var du = canvas ? canvas.toDataURL('image/png') : null;
+  document.body.removeChild(div);
+  if (du) _qrCache[n] = du;
+  return du;
+}
+
+function _addRecto(doc, n, x, y) {
+  doc.addImage(FACE_SRC, 'PNG', x, y, PDF_CARD_W, PDF_CARD_H);
+  var qrDU = _genQRDataURL(n);
+  if (qrDU) doc.addImage(qrDU, 'PNG', x + 13.5, y + 29.6, 36, 36);
+  doc.setFont('courier', 'bold'); doc.setFontSize(4);
+  doc.setTextColor(26, 26, 46);
+  doc.text(lbl(n), x + PDF_CARD_W / 2, y + PDF_CARD_H * 0.26, { align: 'center' });
+}
+
+function _addVerso(doc, x, y) {
+  doc.addImage(DOS_SRC, 'PNG', x, y, PDF_CARD_W, PDF_CARD_H);
+}
+
+function _setPDFStatus(msg, ok) {
+  var el = document.getElementById('pdf-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = ok === false ? '#f88' : ok === true ? '#4f4' : '#ffe066';
+}
+
+function _getNbCards() {
+  return Math.max(1, Math.min(100, parseInt(document.getElementById('nb-cards').value) || 100));
+}
+
+function _getDrift() {
+  return parseInt(document.getElementById('drift-slider').value) / 10;
+}
+
+window.updateNbDisplay = function() {
+  var el = document.getElementById('nb-display');
+  if (el) el.textContent = _getNbCards();
+};
+
+window.updateDriftUI = function() {
+  var v = parseInt(document.getElementById('drift-slider').value) || 0;
+  var d = (v / 10).toFixed(1);
+  document.getElementById('drift-val').textContent = d;
+  document.getElementById('drift-ln2').textContent = (v >= 0 ? '+' : '') + d + 'mm';
+  document.getElementById('drift-ln3').textContent = (v >= 0 ? '+' : '') + (v / 10 * 2).toFixed(1) + 'mm';
+};
+
+window.saveDrift = function() {
+  localStorage.setItem('mj_drift', document.getElementById('drift-slider').value);
+  _setPDFStatus('Derive sauvegardee (' + _getDrift().toFixed(1) + 'mm/ligne)', true);
+};
+
+function _pdfMake3x3(nbCards, drift, filename) {
+  var jsPDF = window.jspdf && window.jspdf.jsPDF;
+  if (!jsPDF) { _setPDFStatus('jsPDF non charge — verifier la connexion', false); return; }
+  _setPDFStatus('Generation en cours… (' + nbCards + ' cartes)');
+  setTimeout(function() {
+    try {
+      var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      var firstPage = true;
+      var numPages = Math.ceil(nbCards / 9);
+      for (var p = 0; p < numPages; p++) {
+        var start = p * 9 + 1, end = Math.min(start + 8, nbCards);
+        if (!firstPage) doc.addPage(); firstPage = false;
+        for (var ci = start; ci <= end; ci++) {
+          var idx = ci - start, row = Math.floor(idx / 3), col = idx % 3;
+          _addRecto(doc, ci, PDF_COL_X[col], PDF_ROW_Y[row]);
+        }
+        doc.addPage();
+        for (var ci = start; ci <= end; ci++) {
+          var idx = ci - start, row = Math.floor(idx / 3), col = idx % 3;
+          _addVerso(doc, PDF_MIRROR_X[col], PDF_ROW_Y[row] + row * drift);
+        }
+      }
+      doc.save(filename);
+      _setPDFStatus('✓ PDF telecharge : ' + filename, true);
+    } catch(e) { _setPDFStatus('Erreur : ' + e.message, false); }
+  }, 40);
+}
+
+function _pdfMake1row(nbCards, filename) {
+  var jsPDF = window.jspdf && window.jspdf.jsPDF;
+  if (!jsPDF) { _setPDFStatus('jsPDF non charge — verifier la connexion', false); return; }
+  _setPDFStatus('Generation en cours… (' + nbCards + ' cartes)');
+  setTimeout(function() {
+    try {
+      var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      var yC = (297 - PDF_CARD_H) / 2, firstPage = true;
+      var numRows = Math.ceil(nbCards / 3);
+      for (var r = 0; r < numRows; r++) {
+        var start = r * 3 + 1, end = Math.min(start + 2, nbCards);
+        if (!firstPage) doc.addPage(); firstPage = false;
+        for (var ci = start; ci <= end; ci++) _addRecto(doc, ci, PDF_COL_X[ci - start], yC);
+        doc.addPage();
+        for (var ci = start; ci <= end; ci++) _addVerso(doc, PDF_MIRROR_X[ci - start], yC);
+      }
+      doc.save(filename);
+      _setPDFStatus('✓ PDF telecharge : ' + filename, true);
+    } catch(e) { _setPDFStatus('Erreur : ' + e.message, false); }
+  }, 40);
+}
+
+window.genPDF      = function() { _pdfMake3x3(_getNbCards(), _getDrift(), 'MJ_' + _getNbCards() + 'cartes.pdf'); };
+window.genCalibPDF = function() { _pdfMake3x3(9, _getDrift(), 'MJ_calibration.pdf'); };
+window.genPDF1row  = function() { _pdfMake1row(_getNbCards(), 'MJ_1ligne_' + _getNbCards() + 'cartes.pdf'); };
+
+(function() {
+  var saved = localStorage.getItem('mj_drift');
+  if (saved !== null) { document.getElementById('drift-slider').value = saved; updateDriftUI(); }
+})();
 
 // SW — mise a jour automatique au push
 if ('serviceWorker' in navigator) {
